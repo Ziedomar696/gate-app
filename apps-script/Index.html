@@ -100,6 +100,11 @@ button.out{background:var(--ok-soft);border-color:var(--ok)}
 .person .btns{grid-row:1/3;grid-column:2;display:flex;gap:6px;align-items:center}
 button.danger{background:var(--warn-soft);border-color:var(--err);color:var(--err)}
 .edited{font-size:11.5px;color:var(--muted)}
+.guardbox{padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-weight:600;color:var(--ink);font-size:15px}
+.person.late{border-color:var(--err);background:var(--warn-soft)}
+.late-banner{background:var(--warn-soft);border:1px solid var(--err);border-radius:var(--radius);padding:10px 14px;display:grid;gap:6px}
+.late-banner b{color:var(--err);font-size:15px}
+.late-banner ul{margin:0;padding-inline-start:18px;font-size:13.5px}
 .empty{color:var(--muted);font-size:13.5px;padding:10px 0}
 .empty ol{margin:6px 0 0;padding-inline-start:20px}
 .bar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -188,6 +193,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <label class="f">اسمك<input id="suName" autocomplete="name"></label>
       <label class="f">اسم المستخدم (إنجليزي صغير)<input id="suUser" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr" placeholder="admin"></label>
       <label class="f">كلمة السر (٦ على الأقل)<input id="suPass" type="password" autocomplete="new-password" dir="ltr"></label>
+      <label class="f">إيميلك (للتنبيهات)<input id="suEmail" type="email" autocomplete="email" dir="ltr" placeholder="name@gmail.com"></label>
       <button class="primary" id="suBtn">إنشاء حساب الإدارة</button>
       <div class="status err" id="suMsg" style="justify-content:center"></div>
     </form>
@@ -212,6 +218,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     </div>
   </header>
 
+  <div class="late-banner" id="lateBanner" role="alert" hidden></div>
+
   <nav class="tabs" id="tabs" role="tablist" hidden>
     <button role="tab" data-view="gate" aria-selected="true">البوابة</button>
     <button role="tab" data-view="reports" data-roles="admin,manager">التقارير</button>
@@ -226,9 +234,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     </div>
 
     <section class="shift" aria-label="بيانات الوردية">
-      <label class="f">اسم فرد الأمن على البوابة
-        <input id="guard" placeholder="مثال: محمود عبد الله" autocomplete="off">
-      </label>
+      <div class="f"><span>فرد الأمن (بيتسجل تلقائي من الحساب)</span><div class="guardbox" id="guardName"></div></div>
       <label class="f">البوابة
         <select id="sector"></select>
       </label>
@@ -256,8 +262,8 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
           <label class="f">رايح فين (وحدة / موقع)<input id="dest" placeholder="مثال: فيلا 42"></label>
           <label class="f">سبب الدخول
-            <input id="reason" list="reasons" placeholder="اختار أو اكتب">
-            <datalist id="reasons"><option value="أعمال صيانة"></option><option value="تشطيبات"></option><option value="نظافة"></option><option value="زراعة وحدائق"></option><option value="توريد / توصيل"></option><option value="نقل عفش"></option></datalist>
+            <select id="reason"></select>
+            <input id="reasonOther" placeholder="اكتب السبب" hidden>
           </label>
           <label class="f">الشركة / المقاول / صاحب العمل<input id="company"></label>
           <label class="f">ملاحظات<input id="notes"></label>
@@ -341,7 +347,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <section class="card"><h3>المحافظات</h3><div id="chGov"></div></section>
       <section class="card"><h3>النوع</h3><div id="chGender"></div></section>
       <section class="card full"><h3>المركبات حسب الماركة</h3><div id="chVehicle"></div></section>
-      <section class="card full"><h3>جوه بقالهم أكتر من ١٢ ساعة</h3><div id="tbOver"></div></section>
+      <section class="card full"><h3>جوه بقالهم أكتر من <span id="rpLateH">8</span> ساعات</h3><div id="tbOver"></div></section>
       <section class="card full"><h3>أكتر ناس اتكرر دخولهم</h3><div id="tbFreq"></div></section>
     </div>
   </section>
@@ -350,7 +356,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   <section id="viewUsers" style="display:grid;gap:16px" hidden>
     <section class="card">
       <h2>المستخدمين <button class="sm solid" id="addUserBtn" type="button" style="margin-inline-start:auto">+ مستخدم جديد</button></h2>
-      <p class="hint">«بوابة»: بيسجّل على بوابته بس. «مدير»: البوابات اللي تحددها + التقارير. «الإدارة»: كل حاجة + المستخدمين.</p>
+      <p class="hint">«فرد أمن»: بيسجّل على بوابته بس، والحركات بتتسجل باسمه. «مدير»: البوابات اللي تحددها + التقارير. «الإدارة»: كل حاجة + المستخدمين.</p>
       <div class="tablewrap">
         <table>
           <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>البوابات</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
@@ -367,6 +373,15 @@ dialog form{padding:16px;display:grid;gap:12px}
       </form>
       <p class="hint">البوابة الموقوفة بتختفي من التسجيل، بس حركتها القديمة بتفضل في السجل والتقارير.</p>
     </section>
+    <section class="card">
+      <h2>أسباب الدخول</h2>
+      <div class="gate-list" id="reasonList"></div>
+      <form class="bar-row" id="reasonForm">
+        <label class="f grow">سبب جديد<input id="newReason" placeholder="مثال: صيانة تكييفات"></label>
+        <button class="solid" type="submit">إضافة</button>
+      </form>
+      <p class="hint">السبب الموقوف بيختفي من القايمة، بس بيفضل في الحركات القديمة والتقارير.</p>
+    </section>
   </section>
 </div>
 
@@ -374,16 +389,17 @@ dialog form{padding:16px;display:grid;gap:12px}
 <dialog id="userDlg">
   <form method="dialog" id="userForm">
     <h2 id="userDlgTitle">مستخدم جديد</h2>
-    <label class="f">الاسم<input id="uName" placeholder="مثال: بوابة فيرونا 1"></label>
+    <label class="f">الاسم<input id="uName" placeholder="مثال: محمود عبد الله"></label>
     <label class="f">اسم المستخدم (إنجليزي صغير أو أرقام)<input id="uUser" dir="ltr" autocapitalize="none" spellcheck="false" placeholder="verona1"></label>
     <label class="f">الدور
-      <select id="uRole"><option value="gate">بوابة</option><option value="manager">مدير</option><option value="admin">الإدارة</option></select>
+      <select id="uRole"><option value="gate">فرد أمن</option><option value="manager">مدير</option><option value="admin">الإدارة</option></select>
     </label>
     <div class="f" style="display:grid;gap:6px;font-size:12.5px;color:var(--muted)">
       <span id="uGatesLbl">البوابة</span>
       <div class="checks" id="uGates"></div>
     </div>
     <label class="f"><span id="uPassLbl">كلمة السر</span><input id="uPass" type="text" dir="ltr" autocomplete="new-password"></label>
+    <label class="f" id="uEmailRow">الإيميل (بيوصله تنبيه اللي عدّوا ٨ ساعات)<input id="uEmail" type="email" dir="ltr" autocomplete="off" placeholder="name@gmail.com"></label>
     <label class="checks" id="uActiveRow"><input type="checkbox" id="uActive" checked> الحساب شغال</label>
     <div class="status err" id="uMsg"></div>
     <div class="actions">
@@ -415,7 +431,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <label class="f">رقم الموبايل<input id="ePhone" inputmode="tel" class="num" style="text-align:right"></label>
       <label class="f wide">العنوان<input id="eAddress"></label>
       <label class="f">رايح فين<input id="eDest"></label>
-      <label class="f">سبب الدخول<input id="eReason" list="reasons"></label>
+      <label class="f">سبب الدخول<select id="eReason"></select><input id="eReasonOther" placeholder="اكتب السبب" hidden></label>
       <label class="f">الشركة / صاحب العمل<input id="eCompany"></label>
       <label class="f">ملاحظات<input id="eNotes"></label>
       <label class="f wide">رقم اللوحة (سيبه فاضي لو مفيش مركبة)<input id="ePlate" placeholder="م س ع 1234" autocomplete="off"></label>
@@ -443,7 +459,18 @@ dialog form{padding:16px;display:grid;gap:12px}
     set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
   };
   var GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
-  var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", gate: "بوابة" };
+  var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", gate: "فرد أمن" };
+  var REASONS = [], ALERT_H = 8;
+  function fillReasons(sel, other, current){
+    current = current || "";
+    var known = REASONS.indexOf(current) >= 0 || !current;
+    sel.innerHTML = '<option value="">— اختار السبب —</option>' + REASONS.map(function(r){ return "<option>"+esc(r)+"</option>"; }).join("") + '<option value="__other">أخرى…</option>';
+    sel.value = known ? current : "__other";
+    other.hidden = sel.value !== "__other"; other.value = known ? "" : current;
+  }
+  function getReason(sel, other){ return sel.value === "__other" ? other.value.trim() : sel.value; }
+  function bindOther(sel, other){ sel.addEventListener("change", function(){ other.hidden = sel.value !== "__other"; if(!other.hidden) other.focus(); }); }
+  function isLate(e){ return !e.outMs && e.inMs && Date.now() - e.inMs > ALERT_H * 3600e3; }
 
   var TOKEN = store.get("gate.token");
   var ME = null, MYGATES = [];
@@ -511,6 +538,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   function signedIn(r){
     TOKEN = r.token || TOKEN; store.set("gate.token", TOKEN);
     ME = r.me; MYGATES = r.gates || [];
+    if(r.reasons) REASONS = r.reasons; if(r.alertHours) ALERT_H = r.alertHours;
     start();
   }
   $("#loginForm").addEventListener("submit", function(e){
@@ -524,7 +552,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   $("#setupForm").addEventListener("submit", function(e){
     e.preventDefault();
     busy($("#suBtn"), true); $("#suMsg").textContent = "";
-    run("setupAdmin", $("#suCode").value.trim(), $("#suUser").value.trim().toLowerCase(), $("#suName").value.trim(), $("#suPass").value)
+    run("setupAdmin", $("#suCode").value.trim(), $("#suUser").value.trim().toLowerCase(), $("#suName").value.trim(), $("#suPass").value, $("#suEmail").value.trim())
       .then(function(r){ signedIn(r); toast("اتعمل حساب الإدارة. ابدأ ضيف المستخدمين."); showView("users"); })
       .catch(function(err){ $("#suMsg").textContent = errMsg(err); })
       .then(function(){ busy($("#suBtn"), false); });
@@ -556,6 +584,8 @@ dialog form{padding:16px;display:grid;gap:12px}
   function start(){
     $("#lockScreen").hidden = true; $("#app").hidden = false;
     $("#meName").textContent = ME.name;
+    $("#guardName").textContent = ME.name;
+    fillReasons($("#reason"), $("#reasonOther"), "");
     $("#meRole").textContent = ROLE_LABEL[ME.role] || ME.role;
     var visible = 0;
     $$("#tabs button").forEach(function(b){
@@ -582,8 +612,8 @@ dialog form{padding:16px;display:grid;gap:12px}
   }
 
   // ================================================================ gate
-  $("#guard").value = store.get("gate.guard");
-  $("#guard").addEventListener("change", function(e){ store.set("gate.guard", e.target.value.trim()); });
+  bindOther($("#reason"), $("#reasonOther"));
+  bindOther($("#eReason"), $("#eReasonOther"));
   $("#sector").addEventListener("change", function(e){ store.set("gate.sector", e.target.value); refresh(); });
 
   function refreshDerived(){
@@ -681,7 +711,8 @@ dialog form{padding:16px;display:grid;gap:12px}
   }
 
   function clearForm(){
-    ["name","nid","phone","address","dest","reason","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
+    ["name","nid","phone","address","dest","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
+    fillReasons($("#reason"), $("#reasonOther"), "");
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
     clearCar();
@@ -693,9 +724,9 @@ dialog form{padding:16px;display:grid;gap:12px}
   $("#entryForm").addEventListener("submit", function(e){
     e.preventDefault();
     var entry = {
-      guard: $("#guard").value.trim(), sector: $("#sector").value,
+      sector: $("#sector").value,
       name: $("#name").value.trim(), nid: cleanNid($("#nid").value), phone: latin($("#phone").value.trim()),
-      address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: $("#reason").value.trim(),
+      address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: getReason($("#reason"), $("#reasonOther")),
       company: $("#company").value.trim(), notes: $("#notes").value.trim(),
       plate: "", vehicle: "", vehicleColor: ""
     };
@@ -703,11 +734,9 @@ dialog form{padding:16px;display:grid;gap:12px}
       entry.plate = plateNorm($("#plate").value); entry.vehicle = $("#vehicle").value.trim(); entry.vehicleColor = $("#vehicleColor").value.trim();
       if(!/\d/.test(entry.plate) || !/[ء-ي]/.test(entry.plate)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)، أو شيل علامة «معاه مركبة»."); $("#plate").focus(); return; }
     }
-    if(!entry.guard){ toast("اكتب اسم فرد الأمن الأول."); $("#guard").focus(); return; }
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
     if(!entry.name){ toast("اكتب الاسم."); $("#name").focus(); return; }
     if(!parseNid(entry.nid)){ toast("الرقم القومي لازم يكون ١٤ رقم صحيح."); $("#nid").focus(); return; }
-    store.set("gate.guard", entry.guard);
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
       toast("اتسجل دخول " + entry.name.split(" ")[0] + " الساعة " + r.time);
@@ -719,10 +748,8 @@ dialog form{padding:16px;display:grid;gap:12px}
   document.addEventListener("click", function(e){
     var b = e.target.closest ? e.target.closest("button[data-out]") : null;
     if(!b) return;
-    var guard = $("#guard").value.trim();
-    if(!guard){ toast("اكتب اسم فرد الأمن الأول."); $("#guard").focus(); return; }
     busy(b, true, "…");
-    run("checkout", TOKEN, b.getAttribute("data-out"), guard).then(function(){ toast("اتسجل الخروج."); refresh(); })
+    run("checkout", TOKEN, b.getAttribute("data-out"), "").then(function(){ toast("اتسجل الخروج."); refresh(); })
       .catch(function(err){ toast(errMsg(err)); busy(b, false, "خرج"); });
   });
 
@@ -733,14 +760,25 @@ dialog form{padding:16px;display:grid;gap:12px}
     run("getState", TOKEN, $("#logDay").value, $("#sector").value).then(function(s){
       state = s;
       if(s.gates && s.gates.join("|") !== MYGATES.join("|")){ MYGATES = s.gates; fillGateSelects(); }
+      if(s.alertHours) ALERT_H = s.alertHours;
+      if(s.reasons && s.reasons.join("|") !== REASONS.join("|")){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = s.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
       render();
       $("#sync").textContent = "· آخر تحديث " + hm(Date.now());
     }).catch(function(err){ toast(errMsg(err)); })
     .then(function(){ loading = false; });
   }
 
+  function drawLate(){
+    var list = state.late || [], box = $("#lateBanner");
+    if(!ME || ME.role === "gate" || !list.length){ box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = "<b>⚠️ " + list.length + " جوه بقالهم أكتر من " + ALERT_H + " ساعات</b><ul>" + list.slice(0, 8).map(function(x){
+      return "<li>" + esc(x.name) + " — " + esc(x.sector) + " — دخل " + esc(x.day + " " + x.inTime) + " — بقاله <b>" + x.hours + "</b> ساعة</li>";
+    }).join("") + (list.length > 8 ? "<li>و" + (list.length - 8) + " كمان…</li>" : "") + "</ul>";
+  }
   function render(){
     var g = $("#sector").value;
+    drawLate();
     $("#stInside").textContent = state.inside.length;
     $("#stToday").textContent = state.todayCount;
     var ls = $("#logSector"), cur = ls.value;
@@ -751,7 +789,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#insideTag").textContent = (g ? "بوابة " + g : "") + " · " + state.inside.length;
     var now = Date.now();
     $("#insideList").innerHTML = state.inside.length ? state.inside.map(function(e){
-      return '<div class="person"><div class="nm">'+esc(e.name)+'</div><div class="meta">' +
+      var late = isLate(e);
+      return '<div class="person'+(late ? " late" : "")+'"><div class="nm">'+esc(e.name)+(late ? ' <span class="pill off">عدّى '+ALERT_H+' ساعات</span>' : "")+'</div><div class="meta">' +
         '<span>دخل <span class="num">'+esc(e.inTime)+'</span> · من <span class="num">'+dur(e.inMs, now)+'</span> س</span>' +
         (e.plate ? '<span class="plate">'+esc(e.plate)+'</span>' : "") +
         (e.dest ? "<span>"+esc(e.dest)+"</span>" : "") + (e.company ? "<span>"+esc(e.company)+"</span>" : "") +
@@ -789,8 +828,9 @@ dialog form{padding:16px;display:grid;gap:12px}
     var x = findEntry(b.getAttribute("data-edit-entry")); if(!x) return;
     editId = x.id;
     $("#eTitle").textContent = "تعديل: " + x.name;
-    var map = { eName:"name", eNid:"nid", ePhone:"phone", eAddress:"address", eDest:"dest", eReason:"reason", eCompany:"company", eNotes:"notes", ePlate:"plate", eVehicle:"vehicle", eVehicleColor:"vehicleColor" };
+    var map = { eName:"name", eNid:"nid", ePhone:"phone", eAddress:"address", eDest:"dest", eCompany:"company", eNotes:"notes", ePlate:"plate", eVehicle:"vehicle", eVehicleColor:"vehicleColor" };
     Object.keys(map).forEach(function(k){ $("#"+k).value = x[map[k]] || ""; });
+    fillReasons($("#eReason"), $("#eReasonOther"), x.reason);
     $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
     $("#eMsg").textContent = "";
     var canDel = ME.role === "admin" || ME.role === "manager";
@@ -802,7 +842,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     if(e.submitter && e.submitter.value === "cancel") return;
     e.preventDefault();
     var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value), phone: latin($("#ePhone").value.trim()),
-      address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: $("#eReason").value.trim(),
+      address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: getReason($("#eReason"), $("#eReasonOther")),
       company: $("#eCompany").value.trim(), notes: $("#eNotes").value.trim(),
       plate: plateNorm($("#ePlate").value), vehicle: $("#eVehicle").value.trim(), vehicleColor: $("#eVehicleColor").value.trim() };
     if(!d.name){ $("#eMsg").textContent = "اكتب الاسم."; return; }
@@ -880,6 +920,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var tot = r.gender.m + r.gender.f;
     $("#chGender").innerHTML = tot ? '<div class="split" role="img" aria-label="ذكر '+r.gender.m+'، أنثى '+r.gender.f+'"><i style="flex:'+r.gender.m+';background:var(--bar)"></i><i style="flex:'+r.gender.f+';background:var(--accent)"></i></div>' +
       '<div class="legend"><span style="--c:var(--bar)">ذكر '+fmt(r.gender.m)+' ('+Math.round(r.gender.m/tot*100)+'٪)</span><span style="--c:var(--accent)">أنثى '+fmt(r.gender.f)+' ('+Math.round(r.gender.f/tot*100)+'٪)</span></div>' : '<div class="empty">مفيش بيانات.</div>';
+    $("#rpLateH").textContent = r.alertHours || ALERT_H;
     table($("#tbOver"), ["الاسم","البوابة","دخل","بقاله"], r.overstay.map(function(o){ return [esc(o.name), esc(o.sector), '<span class="num">'+esc(o.day+" "+o.inTime)+'</span>', '<span class="pill off">'+o.hours+' ساعة</span>']; }));
     table($("#tbFreq"), ["الاسم","الرقم القومي","مرات الدخول"], r.frequent.map(function(o){ return [esc(o.name), '<span class="num">'+esc(o.nid)+'</span>', '<b class="num">'+o.n+'</b>']; }));
   }
@@ -905,6 +946,9 @@ dialog form{padding:16px;display:grid;gap:12px}
         "<td>"+(u.active ? '<span class="pill in">شغال</span>' : '<span class="pill off">موقوف</span>')+"</td><td class=\"num\">"+esc(u.lastLogin || "—")+"</td>" +
         '<td><button class="sm" type="button" data-edit="'+esc(u.username)+'">تعديل</button></td></tr>';
     }).join("") || '<tr><td colspan="7" class="empty">مفيش مستخدمين.</td></tr>';
+    $("#reasonList").innerHTML = (admin.reasons || []).map(function(g){
+      return '<span class="gate-item'+(g.active ? "" : " off")+'"><b>'+esc(g.name)+'</b><button class="sm" type="button" data-reason="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
+    }).join("");
     $("#gateList").innerHTML = admin.gates.map(function(g){
       return '<span class="gate-item'+(g.active ? "" : " off")+'"><b>'+esc(g.name)+'</b><button class="sm" type="button" data-gate="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
     }).join("");
@@ -921,7 +965,22 @@ dialog form{padding:16px;display:grid;gap:12px}
     run("saveGate", TOKEN, n, true).then(function(d){ admin = d; drawAdmin(); $("#newGate").value = ""; toast("اتضافت بوابة " + n); refreshGates(); })
       .catch(function(err){ toast(errMsg(err)); });
   });
-  function refreshGates(){ run("whoami", TOKEN).then(function(r){ ME = r.me; MYGATES = r.gates; fillGateSelects(); }).catch(function(){}); }
+  function refreshGates(){ run("whoami", TOKEN).then(function(r){
+    ME = r.me; MYGATES = r.gates; fillGateSelects();
+    if(r.reasons){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = r.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
+  }).catch(function(){}); }
+  $("#reasonList").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-reason]"); if(!b) return;
+    busy(b, true);
+    run("saveReason", TOKEN, b.getAttribute("data-reason"), b.getAttribute("data-on") === "1").then(function(d){ admin = d; drawAdmin(); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); busy(b, false); });
+  });
+  $("#reasonForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var n = $("#newReason").value.trim(); if(!n) return;
+    run("saveReason", TOKEN, n, true).then(function(d){ admin = d; drawAdmin(); $("#newReason").value = ""; toast("اتضاف السبب: " + n); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); });
+  });
 
   var editing = null;
   function drawGateChoices(selected){
@@ -948,6 +1007,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#uPass").value = ""; $("#uPass").placeholder = u ? "سيبها فاضية لو مش هتغيّرها" : "٦ حروف أو أرقام على الأقل";
     $("#uPassLbl").textContent = u ? "كلمة سر جديدة (اختياري)" : "كلمة السر";
     $("#uActive").checked = u ? u.active : true; $("#uActiveRow").hidden = !u;
+    $("#uEmail").value = u ? (u.email || "") : ""; $("#uEmailRow").hidden = $("#uRole").value !== "admin";
     $("#uMsg").textContent = "";
     drawGateChoices(u ? u.gates : []);
     $("#userDlg").showModal();
@@ -957,6 +1017,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var b = e.target.closest("button[data-edit]"); if(!b) return;
     openUser(admin.users.filter(function(u){ return u.username === b.getAttribute("data-edit"); })[0]);
   });
+  $("#uRole").addEventListener("change", function(){ $("#uEmailRow").hidden = $("#uRole").value !== "admin"; });
   $("#uRole").addEventListener("change", function(){ drawGateChoices(editing && editing.role === $("#uRole").value ? editing.gates : []); });
   $("#userForm").addEventListener("submit", function(e){
     if(e.submitter && e.submitter.value === "cancel") return;
@@ -965,7 +1026,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     if(role === "admin") gates = ["*"];
     else if($("#ugAll") && $("#ugAll").checked) gates = ["*"];
     else gates = $$('#uGates input[name="ug"]:checked').map(function(c){ return c.value; });
-    var d = { isNew: !editing, username: $("#uUser").value.trim().toLowerCase(), name: $("#uName").value.trim(), role: role, gates: gates, password: $("#uPass").value, active: editing ? $("#uActive").checked : true };
+    var d = { isNew: !editing, username: $("#uUser").value.trim().toLowerCase(), name: $("#uName").value.trim(), role: role, gates: gates, password: $("#uPass").value, active: editing ? $("#uActive").checked : true, email: role === "admin" ? $("#uEmail").value.trim() : "" };
     var btn = $("#uSave"); busy(btn, true, "بيحفظ…"); $("#uMsg").textContent = "";
     run("saveUser", TOKEN, d).then(function(res){
       admin = res; drawAdmin(); $("#userDlg").close();

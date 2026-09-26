@@ -13,7 +13,11 @@ const USERS_SHEET = 'المستخدمين';
 const GATES_SHEET = 'البوابات';
 const DEFAULT_GATES = ['Arezzo', 'Verona', 'Isola', 'Veneto'];
 const TOKEN_DAYS = 30;
-const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'بوابة' };
+const ALERT_HOURS = 8;              // بعد كام ساعة جوه يتبعت تنبيه للإدارة
+const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'فرد أمن' };
+const REASONS_SHEET = 'أسباب الدخول';
+const DEFAULT_REASONS = ['أعمال صيانة', 'تشطيبات', 'نظافة', 'زراعة وحدائق', 'توريد / توصيل', 'نقل عفش',
+  'حمامات سباحة', 'مختصين الزراعة التابعين للوحدات', 'السواقين التابعين للوحدات', 'المفوضين التابعين للوحدات', 'الدليفري'];
 
 const HEADERS = [
   'الاسم', 'الرقم القومي', 'تاريخ الميلاد', 'النوع', 'المحافظة', 'العنوان', 'رقم الموبايل',
@@ -23,11 +27,12 @@ const HEADERS = [
   'ID', 'inMs', 'outMs',
   'حساب الدخول', 'حساب الخروج',
   'رقم اللوحة', 'المركبة', 'لون المركبة',
-  'آخر تعديل', 'محذوف'
+  'آخر تعديل', 'محذوف',
+  'تنبيه التأخير'
 ];
 const COL = {};
 HEADERS.forEach(function (h, i) { COL[h] = i; });
-const U_HEADERS = ['اسم المستخدم', 'الاسم', 'الدور', 'البوابات', 'نشط', 'آخر دخول', 'تاريخ الإنشاء', 'salt', 'hash', 'ver'];
+const U_HEADERS = ['اسم المستخدم', 'الاسم', 'الدور', 'البوابات', 'نشط', 'آخر دخول', 'تاريخ الإنشاء', 'salt', 'hash', 'ver', 'الإيميل'];
 const G_HEADERS = ['البوابة', 'نشطة'];
 
 const GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
@@ -44,9 +49,10 @@ function doGet() {
 /** شغّلها من المحرر بعد أي تحديث: بتجهز كل الشيتات. */
 function setup() {
   const ss = ss_();
-  logSheet_(); usersSheet_(); gatesSheet_();
+  logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_();
+  installAlertTrigger_();
   ss.getSheets().forEach(function (s) {
-    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
+    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
   });
   Logger.log('الشيت جاهز: ' + ss.getName() + ' — ' + ss.getUrl());
   Logger.log(needsSetup() ? 'لسه مفيش حساب إدارة: افتح التطبيق واعمل أول حساب بـ SETUP_CODE.' : 'حسابات الإدارة موجودة.');
@@ -112,6 +118,21 @@ function gatesSheet_() {
   });
 }
 
+function reasonsSheet_() {
+  return ensureSheet_(REASONS_SHEET, ['السبب', 'نشط'], function (sh) {
+    sh.getRange(2, 1, DEFAULT_REASONS.length, 2).setValues(DEFAULT_REASONS.map(function (r) { return [r, 'نعم']; }));
+  });
+}
+function reasons_() {
+  const sh = reasonsSheet_();
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, 2).getValues()
+    .filter(function (r) { return String(r[0]).trim(); })
+    .map(function (r) { return { name: String(r[0]).trim(), active: String(r[1]).trim() !== 'لا' }; });
+}
+function activeReasons_() { return reasons_().filter(function (r) { return r.active; }).map(function (r) { return r.name; }); }
+
 function logSectors_() {
   const sh = ss_().getSheetByName(LOG_SHEET);
   if (!sh || sh.getLastRow() < 2) return [];
@@ -132,7 +153,7 @@ function users_() {
       row: i + 2, username: String(r[0]).trim().toLowerCase(), name: String(r[1]), role: roleKey_(r[2]),
       gates: String(r[3] || '').split(',').map(function (g) { return g.trim(); }).filter(String),
       active: String(r[4]).trim() !== 'لا', lastLogin: cell_(r[5]), created: cell_(r[6]),
-      salt: String(r[7]), hash: String(r[8]), ver: Number(r[9]) || 1
+      salt: String(r[7]), hash: String(r[8]), ver: Number(r[9]) || 1, email: String(r[10] || '').trim()
     });
   });
   cache.put('users', JSON.stringify(out), 300);
@@ -146,10 +167,10 @@ function findUser_(username) {
 function roleKey_(v) {
   v = String(v || '').trim();
   for (const k in ROLES) if (k === v || ROLES[k] === v) return k;
-  return 'gate';
+  return 'gate';                                   // ("بوابة" القديمة = فرد أمن)
 }
 function publicUser_(u) {
-  return { username: u.username, name: u.name, role: u.role, roleLabel: ROLES[u.role], gates: u.gates, active: u.active, lastLogin: u.lastLogin, created: u.created };
+  return { username: u.username, name: u.name, role: u.role, roleLabel: ROLES[u.role], gates: u.gates, active: u.active, lastLogin: u.lastLogin, created: u.created, email: u.email || '' };
 }
 
 function hash_(salt, pw) {
@@ -209,13 +230,13 @@ function needsSetup() {
   return !users_().some(function (u) { return u.role === 'admin' && u.active; });
 }
 
-function setupAdmin(code, username, name, password) {
+function setupAdmin(code, username, name, password, email) {
   if (SETUP_CODE === 'CHANGE-ME') throw new Error('غيّر SETUP_CODE في أول ملف Code.gs واعمل Deploy بنسخة جديدة الأول.');
   if (String(code || '').trim() !== SETUP_CODE) throw new Error('كود التفعيل غلط.');
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     if (!needsSetup()) throw new Error('حساب الإدارة معمول قبل كده. سجّل دخول.');
-    writeUser_({ username: username, name: name, role: 'admin', gates: ['*'], active: true, password: password }, true);
+    writeUser_({ username: username, name: name, role: 'admin', gates: ['*'], active: true, password: password, email: email || '' }, true);
   } finally { lock.releaseLock(); }
   return login(username, password);
 }
@@ -232,19 +253,19 @@ function login(username, password) {
   }
   cache.remove(key);
   try { usersSheet_().getRange(u.row, 6).setValue("'" + stamp_(new Date())); dropUsersCache_(); } catch (e) {}
-  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u) };
+  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), alertHours: ALERT_HOURS };
 }
 
 function whoami(token) {
   const u = auth_(token);
-  return { me: publicUser_(u), gates: myGates_(u) };
+  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), alertHours: ALERT_HOURS };
 }
 
 function changeMyPassword(token, oldPw, newPw) {
   const u = auth_(token);
   if (hash_(u.salt, oldPw) !== u.hash) throw new Error('كلمة السر الحالية غلط.');
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
-  try { writeUser_({ username: u.username, name: u.name, role: u.role, gates: u.gates, active: true, password: newPw }, false); }
+  try { writeUser_({ username: u.username, name: u.name, role: u.role, gates: u.gates, active: true, password: newPw, email: u.email }, false); }
   finally { lock.releaseLock(); }
   return makeToken_(findUser_(u.username));
 }
@@ -253,7 +274,7 @@ function changeMyPassword(token, oldPw, newPw) {
 
 function adminData(token) {
   auth_(token, ['admin']);
-  return { users: users_().map(publicUser_), gates: gates_(), roles: ROLES };
+  return { users: users_().map(publicUser_), gates: gates_(), reasons: reasons_(), roles: ROLES };
 }
 
 function saveUser(token, d) {
@@ -292,6 +313,8 @@ function writeUser_(d, isNew) {
   if (isNew && existing) throw new Error('اسم المستخدم ده موجود قبل كده.');
   if (!isNew && !existing) throw new Error('المستخدم مش موجود.');
   const pw = String(d.password || '');
+  const email = String(d.email || '').trim().toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('الإيميل مش مظبوط.');
   if ((isNew || pw) && pw.length < 6) throw new Error('كلمة السر لازم تبقى ٦ حروف أو أرقام على الأقل.');
 
   let salt = existing ? existing.salt : '', hash = existing ? existing.hash : '', ver = existing ? existing.ver : 1;
@@ -299,11 +322,26 @@ function writeUser_(d, isNew) {
   if (existing && existing.active && !active) ver++;                 // الإيقاف بيطلّعه من كل الأجهزة
 
   const row = [username, name, ROLES[role], gates.join(','), active ? 'نعم' : 'لا',
-    existing ? existing.lastLogin : '', existing ? existing.created : stamp_(new Date()), salt, hash, String(ver)];
+    existing ? existing.lastLogin : '', existing ? existing.created : stamp_(new Date()), salt, hash, String(ver),
+    d.email === undefined && existing ? existing.email : email];
   const vals = row.map(function (v, i) { return (i === 5 || i === 6) && v ? "'" + v : v; });
   if (existing) sh.getRange(existing.row, 1, 1, row.length).setValues([vals]);
   else sh.appendRow(vals);
   dropUsersCache_();
+}
+
+function saveReason(token, name, active) {
+  auth_(token, ['admin']);
+  name = clean_(name);
+  if (!name) throw new Error('اكتب السبب.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const sh = reasonsSheet_();
+    const i = reasons_().map(function (r) { return r.name; }).indexOf(name);
+    if (i >= 0) sh.getRange(i + 2, 2).setValue(active === false ? 'لا' : 'نعم');
+    else sh.appendRow([name, 'نعم']);
+  } finally { lock.releaseLock(); }
+  return adminData(token);
 }
 
 function saveGate(token, name, active) {
@@ -333,7 +371,10 @@ function getState(token, day, gate) {
     inside: rows.filter(function (r) { return !r.outMs && inGate(r); }),
     day: rows.filter(function (r) { return r.day === day; }),
     todayCount: rows.filter(function (r) { return r.day === today && inGate(r); }).length,
-    gates: myGates_(u)
+    late: lateList_(rows),
+    gates: myGates_(u),
+    reasons: activeReasons_(),
+    alertHours: ALERT_HOURS
   };
 }
 
@@ -370,9 +411,8 @@ function ocrText_(base64, mime) {
 
 function saveEntry(token, e) {
   const u = auth_(token);
-  const name = clean_(e.name), nid = digits_(e.nid), guard = clean_(e.guard);
+  const name = clean_(e.name), nid = digits_(e.nid), guard = u.name;   // فرد الأمن = صاحب الحساب
   const sector = u.role === 'gate' ? u.gates[0] : clean_(e.sector);
-  if (!guard) throw new Error('اكتب اسم فرد الأمن.');
   if (!sector) throw new Error('اختار البوابة.');
   if (myGates_(u).indexOf(sector) < 0) throw new Error('حسابك مش مسموح له يسجّل على بوابة ' + sector + '.');
   if (!name) throw new Error('اكتب الاسم.');
@@ -419,8 +459,7 @@ function saveEntry(token, e) {
 
 function checkout(token, id, guard) {
   const u = auth_(token);
-  guard = clean_(guard);
-  if (!guard) throw new Error('اكتب اسم فرد الأمن.');
+  guard = u.name;                                   // فرد الأمن = صاحب الحساب
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
@@ -513,6 +552,65 @@ function deleteEntry(token, id) {
   } finally { lock.releaseLock(); }
 }
 
+// ================================================================ 8-hour alerts
+
+/** اللي جوه بقالهم أكتر من ALERT_HOURS (الأقدم الأول). */
+function lateList_(rows) {
+  const now = Date.now(), lim = ALERT_HOURS * 3600e3;
+  return rows.filter(function (r) { return !r.outMs && r.inMs && now - r.inMs > lim; })
+    .sort(function (a, b) { return a.inMs - b.inMs; })
+    .map(function (r) {
+      return { id: r.id, name: r.name, sector: r.sector, day: r.day, inTime: r.inTime, hours: Math.floor((now - r.inMs) / 3600e3),
+        company: r.company, phone: r.phone, plate: r.plate, guardIn: r.guardIn, alerted: r.alerted };
+    });
+}
+
+/** بتتشغل لوحدها كل ١٥ دقيقة (setup بيركّبها). بتبعت إيميل للإدارة مرة واحدة لكل شخص. */
+function checkOverstays() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return;
+  try {
+    const fresh = lateList_(rows_(3000)).filter(function (r) { return !String(r.alerted || '').trim(); });
+    if (!fresh.length) return;
+    const to = alertEmails_();
+    if (to.length) {
+      const rowsHtml = fresh.map(function (r) {
+        return '<tr><td>' + esc_(r.name) + '</td><td>' + esc_(r.sector) + '</td><td>' + esc_(r.day + ' ' + r.inTime) + '</td><td><b>' + r.hours + ' ساعة</b></td><td>' +
+          esc_(r.company) + '</td><td>' + esc_(r.phone) + '</td><td>' + esc_(r.plate) + '</td><td>' + esc_(r.guardIn) + '</td></tr>';
+      }).join('');
+      const body = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif">' +
+        '<h3 style="color:#B3261E">⚠️ ' + fresh.length + ' جوه الكمباوند بقالهم أكتر من ' + ALERT_HOURS + ' ساعات</h3>' +
+        '<table border="1" cellpadding="6" style="border-collapse:collapse;font-size:14px"><tr style="background:#16414D;color:#fff">' +
+        '<th>الاسم</th><th>البوابة</th><th>دخل</th><th>بقاله</th><th>الشركة</th><th>الموبايل</th><th>اللوحة</th><th>فرد الأمن</th></tr>' + rowsHtml + '</table>' +
+        '<p>التنبيه ده بيتبعت مرة واحدة لكل شخص. افتح التطبيق وسجّل خروجه أو تابع مع البوابة.</p></div>';
+      MailApp.sendEmail({
+        to: to.join(','),
+        subject: '⚠️ تنبيه بوابات: ' + fresh.length + ' جوه بقالهم أكتر من ' + ALERT_HOURS + ' ساعات',
+        htmlBody: body,
+        body: fresh.map(function (r) { return r.name + ' — ' + r.sector + ' — ' + r.hours + ' ساعة'; }).join('\n')
+      });
+    }
+    const sh = logSheet_(), mark = 'اتبعت ' + stamp_(new Date());
+    fresh.forEach(function (r) { const n = rowOf_(sh, r.id); if (n) sh.getRange(n, COL['تنبيه التأخير'] + 1).setValue(mark); });
+  } finally { lock.releaseLock(); }
+}
+
+/** إيميلات الإدارة الشغالة، ولو مفيش: إيميل صاحب السكريبت. */
+function alertEmails_() {
+  const list = users_().filter(function (u) { return u.role === 'admin' && u.active && u.email; }).map(function (u) { return u.email; });
+  if (list.length) return list;
+  let owner = '';
+  try { owner = Session.getEffectiveUser().getEmail(); } catch (e) {}
+  return owner ? [owner] : [];
+}
+
+function installAlertTrigger_() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'checkOverstays') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('checkOverstays').timeBased().everyMinutes(15).create();
+}
+
+function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
 // ================================================================ reports
 
 function getReport(token, from, to, gate) {
@@ -562,9 +660,8 @@ function getReport(token, from, to, gate) {
     gender: { m: rows.filter(function (r) { return r.gender === 'ذكر'; }).length, f: rows.filter(function (r) { return r.gender === 'أنثى'; }).length },
     frequent: Object.keys(nids).map(function (k) { return nids[k]; }).filter(function (x) { return x.n > 1; })
       .sort(function (a, b) { return b.n - a.n; }).slice(0, 10),
-    overstay: all.filter(function (r) { return !r.outMs && r.inMs && now - r.inMs > 12 * 3600e3; })
-      .map(function (r) { return { name: r.name, sector: r.sector, day: r.day, inTime: r.inTime, hours: Math.floor((now - r.inMs) / 3600e3) }; })
-      .slice(0, 50),
+    overstay: lateList_(all).slice(0, 50),
+    alertHours: ALERT_HOURS,
     gates: myGates_(u)
   };
 }
@@ -600,7 +697,7 @@ function rows_(limit) {
       guardIn: v[COL['فرد الأمن (دخول)']], guardOut: v[COL['فرد الأمن (خروج)']],
       plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
       phone: v[COL['رقم الموبايل']] || '', address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
-      edited: v[COL['آخر تعديل']] || '',
+      edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
     });
