@@ -67,6 +67,11 @@ input.flag{border-color:var(--warn);background:var(--warn-soft)}
 .scanbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
 .scanbtn small{display:block;font-weight:500;font-size:12px;opacity:.8}
 .scanbtn.busy{opacity:.6;pointer-events:none}
+.scanbtn.small{font-size:15px;padding:10px 14px;background:var(--surface-2);color:var(--ink);border:1px solid var(--accent)}
+.veh{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:10px;background:var(--surface-2)}
+.veh .scanbtn.small{background:var(--surface)}
+.veh-toggle{font-size:15px}
+.plate{display:inline-block;font-weight:600;border:1.5px solid var(--ink);border-radius:5px;padding:0 6px;font-size:12.5px;line-height:1.6;white-space:nowrap;background:var(--surface)}
 .thumb{width:120px;aspect-ratio:1.58;max-width:100%;border-radius:8px;border:1px dashed var(--line);background:var(--surface-2) center/cover no-repeat;flex:none;display:grid;place-items:center;color:var(--muted);font-size:11px}
 .status{font-size:13px;color:var(--muted);min-height:1.4em;display:flex;align-items:center;gap:8px}
 .status.err{color:var(--err)}.status.ok{color:var(--ok)}
@@ -92,7 +97,9 @@ button.out{background:var(--ok-soft);border-color:var(--ok)}
 .person{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .person .nm{font-weight:600}
 .person .meta{grid-column:1;font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
-.person button{grid-row:1/3;grid-column:2}
+.person .btns{grid-row:1/3;grid-column:2;display:flex;gap:6px;align-items:center}
+button.danger{background:var(--warn-soft);border-color:var(--err);color:var(--err)}
+.edited{font-size:11.5px;color:var(--muted)}
 .empty{color:var(--muted);font-size:13.5px;padding:10px 0}
 .empty ol{margin:6px 0 0;padding-inline-start:20px}
 .bar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -255,6 +262,26 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f">الشركة / المقاول / صاحب العمل<input id="company"></label>
           <label class="f">ملاحظات<input id="notes"></label>
         </div>
+        <section class="veh">
+          <label class="checks veh-toggle"><input type="checkbox" id="hasCar"> <b>معاه مركبة</b></label>
+          <div id="carFields" style="display:grid;gap:10px" hidden>
+            <div class="scanrow">
+              <label class="scanbtn small" id="carScanBtn">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17l1.5-5h9L18 17M4 17v2h3v-2M17 17v2h3v-2"/><path d="M7.5 12 9 8h6l1.5 4"/><circle cx="8" cy="14.5" r=".8"/><circle cx="16" cy="14.5" r=".8"/></svg>
+                <span>صوّر رخصة المركبة<small>الوش اللي فيه رقم اللوحة</small></span>
+                <input type="file" id="carPhoto" accept="image/*" capture="environment" aria-label="صورة رخصة المركبة">
+              </label>
+              <div class="thumb" id="carThumb">مفيش صورة</div>
+            </div>
+            <div class="status" id="carStatus" aria-live="polite">أو اكتب رقم اللوحة بإيدك.</div>
+            <details class="raw" id="carRawBox" hidden><summary>النص اللي اتقرا من الرخصة</summary><pre id="carRawText"></pre></details>
+            <div class="fields">
+              <label class="f wide">رقم اللوحة (حروف وأرقام)<input id="plate" placeholder="م س ع 1234" autocomplete="off"></label>
+              <label class="f">الماركة / الموديل<input id="vehicle" placeholder="مثال: هيونداي النترا"></label>
+              <label class="f">اللون<input id="vehicleColor" placeholder="مثال: فضي"></label>
+            </div>
+          </div>
+        </section>
         <div class="dupe" id="dupe" hidden></div>
         <div class="actions">
           <button type="submit" class="primary" id="saveBtn">تسجيل الدخول الآن</button>
@@ -273,11 +300,11 @@ dialog form{padding:16px;display:grid;gap:12px}
       <div class="bar-row">
         <label class="f">اليوم<input type="date" id="logDay"></label>
         <label class="f">البوابة<select id="logSector"><option value="">كل البوابات</option></select></label>
-        <label class="f grow">بحث بالاسم أو الرقم القومي أو الشركة<input id="logSearch" type="search"></label>
+        <label class="f grow">بحث بالاسم أو الرقم القومي أو الشركة أو اللوحة<input id="logSearch" type="search"></label>
       </div>
       <div class="tablewrap">
         <table class="wide">
-          <thead><tr><th>الحالة</th><th>الاسم</th><th>الرقم القومي</th><th>البوابة</th><th>رايح فين</th><th>السبب</th><th>الشركة</th><th>دخول</th><th>خروج</th><th>المدة</th><th>فرد الأمن</th><th></th></tr></thead>
+          <thead><tr><th>الحالة</th><th>الاسم</th><th>الرقم القومي</th><th>البوابة</th><th>رايح فين</th><th>السبب</th><th>الشركة</th><th>المركبة</th><th>دخول</th><th>خروج</th><th>المدة</th><th>فرد الأمن</th><th></th></tr></thead>
           <tbody id="logBody"></tbody>
         </table>
       </div>
@@ -313,6 +340,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <section class="card"><h3>أكتر الأماكن اللي راحوا لها</h3><div id="chDest"></div></section>
       <section class="card"><h3>المحافظات</h3><div id="chGov"></div></section>
       <section class="card"><h3>النوع</h3><div id="chGender"></div></section>
+      <section class="card full"><h3>المركبات حسب الماركة</h3><div id="chVehicle"></div></section>
       <section class="card full"><h3>جوه بقالهم أكتر من ١٢ ساعة</h3><div id="tbOver"></div></section>
       <section class="card full"><h3>أكتر ناس اتكرر دخولهم</h3><div id="tbFreq"></div></section>
     </div>
@@ -374,6 +402,32 @@ dialog form{padding:16px;display:grid;gap:12px}
     <div class="actions">
       <button class="primary" value="save">حفظ</button>
       <button class="ghost" value="cancel" formnovalidate>إلغاء</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="entryDlg">
+  <form method="dialog" id="entryEditForm">
+    <h2 id="eTitle">تعديل البيانات</h2>
+    <div class="fields">
+      <label class="f wide">الاسم بالكامل<input id="eName"></label>
+      <label class="f">الرقم القومي<input id="eNid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
+      <label class="f">رقم الموبايل<input id="ePhone" inputmode="tel" class="num" style="text-align:right"></label>
+      <label class="f wide">العنوان<input id="eAddress"></label>
+      <label class="f">رايح فين<input id="eDest"></label>
+      <label class="f">سبب الدخول<input id="eReason" list="reasons"></label>
+      <label class="f">الشركة / صاحب العمل<input id="eCompany"></label>
+      <label class="f">ملاحظات<input id="eNotes"></label>
+      <label class="f wide">رقم اللوحة (سيبه فاضي لو مفيش مركبة)<input id="ePlate" placeholder="م س ع 1234" autocomplete="off"></label>
+      <label class="f">الماركة / الموديل<input id="eVehicle"></label>
+      <label class="f">اللون<input id="eVehicleColor"></label>
+    </div>
+    <p class="edited" id="eInfo"></p>
+    <div class="status err" id="eMsg"></div>
+    <div class="actions">
+      <button class="primary" id="eSave" value="save">حفظ التعديل</button>
+      <button class="ghost" value="cancel" formnovalidate>إلغاء</button>
+      <button class="danger" type="button" id="eDelete" hidden>مسح الحركة</button>
     </div>
   </form>
 </dialog>
@@ -588,10 +642,49 @@ dialog form{padding:16px;display:grid;gap:12px}
     }).then(function(){ $("#scanBtn").classList.remove("busy"); });
   });
 
+  // ---------- vehicle ----------
+  function plateNorm(s){
+    s = latin(s).replace(/[إآ]/g, "أ").replace(/ي/g, "ى");
+    var letters = (s.match(/[ء-ي]/g) || []).join(" "), nums = (s.match(/\d/g) || []).join("");
+    return (letters + (letters && nums ? " " : "") + nums).trim();
+  }
+  function plateKey(s){ return plateNorm(s).replace(/\s/g, ""); }
+  function carStatus(msg, kind, spin){
+    var s = $("#carStatus"); s.className = "status" + (kind ? " "+kind : "");
+    s.innerHTML = (spin ? '<span class="spin" aria-hidden="true"></span>' : "") + "<span></span>"; s.lastChild.textContent = msg;
+  }
+  $("#hasCar").addEventListener("change", function(e){ $("#carFields").hidden = !e.target.checked; if(e.target.checked) $("#plate").focus(); });
+  $("#plate").addEventListener("blur", function(e){ e.target.value = plateNorm(e.target.value); });
+  $("#carPhoto").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if(!file) return;
+    $("#carScanBtn").classList.add("busy"); carStatus("بقرا الرخصة… ثواني", "", true); $("#carRawBox").hidden = true;
+    shrink(file).then(function(dataUrl){
+      var th = $("#carThumb"); th.textContent = ""; th.style.backgroundImage = "url('" + dataUrl + "')";
+      return run("ocrCar", TOKEN, dataUrl.split(",")[1], "image/jpeg");
+    }).then(function(r){
+      if(r.plate) $("#plate").value = r.plate;
+      if(r.vehicle) $("#vehicle").value = r.vehicle;
+      if(r.color) $("#vehicleColor").value = r.color;
+      if(r.raw){ $("#carRawText").textContent = r.raw; $("#carRawBox").hidden = false; }
+      if(r.plate) carStatus("اتقرت. راجع رقم اللوحة مع العربية نفسها.", "ok");
+      else carStatus("ماقدرتش ألاقي رقم اللوحة. اكتبه بإيدك.", "err");
+    }).catch(function(err){ carStatus(errMsg(err), "err"); })
+    .then(function(){ $("#carScanBtn").classList.remove("busy"); });
+  });
+  function clearCar(){
+    ["plate","vehicle","vehicleColor"].forEach(function(id){ $("#"+id).value = ""; });
+    var th = $("#carThumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
+    $("#carRawBox").hidden = true; $("#hasCar").checked = false; $("#carFields").hidden = true;
+    carStatus("أو اكتب رقم اللوحة بإيدك.");
+  }
+
   function clearForm(){
     ["name","nid","phone","address","dest","reason","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
+    clearCar();
     refreshDerived();
     status("الصورة بتتقري وبتتمسح، مش بتتحفظ.");
   }
@@ -603,8 +696,13 @@ dialog form{padding:16px;display:grid;gap:12px}
       guard: $("#guard").value.trim(), sector: $("#sector").value,
       name: $("#name").value.trim(), nid: cleanNid($("#nid").value), phone: latin($("#phone").value.trim()),
       address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: $("#reason").value.trim(),
-      company: $("#company").value.trim(), notes: $("#notes").value.trim()
+      company: $("#company").value.trim(), notes: $("#notes").value.trim(),
+      plate: "", vehicle: "", vehicleColor: ""
     };
+    if($("#hasCar").checked){
+      entry.plate = plateNorm($("#plate").value); entry.vehicle = $("#vehicle").value.trim(); entry.vehicleColor = $("#vehicleColor").value.trim();
+      if(!/\d/.test(entry.plate) || !/[ء-ي]/.test(entry.plate)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)، أو شيل علامة «معاه مركبة»."); $("#plate").focus(); return; }
+    }
     if(!entry.guard){ toast("اكتب اسم فرد الأمن الأول."); $("#guard").focus(); return; }
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
     if(!entry.name){ toast("اكتب الاسم."); $("#name").focus(); return; }
@@ -655,28 +753,73 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#insideList").innerHTML = state.inside.length ? state.inside.map(function(e){
       return '<div class="person"><div class="nm">'+esc(e.name)+'</div><div class="meta">' +
         '<span>دخل <span class="num">'+esc(e.inTime)+'</span> · من <span class="num">'+dur(e.inMs, now)+'</span> س</span>' +
+        (e.plate ? '<span class="plate">'+esc(e.plate)+'</span>' : "") +
         (e.dest ? "<span>"+esc(e.dest)+"</span>" : "") + (e.company ? "<span>"+esc(e.company)+"</span>" : "") +
-        '</div><button class="sm out" data-out="'+esc(e.id)+'">خرج</button></div>';
+        '</div><div class="btns"><button class="sm ghost" type="button" data-edit-entry="'+esc(e.id)+'">تعديل</button><button class="sm out" data-out="'+esc(e.id)+'">خرج</button></div></div>';
     }).join("") : '<div class="empty">مفيش حد جوه' + (g ? " في البوابة دي" : "") + ' دلوقتي.<ol><li>صوّر وش البطاقة.</li><li>راجع الاسم والرقم واكتب رايح فين.</li><li>اضغط «تسجيل الدخول الآن»، ولما يخرج اضغط «خرج».</li></ol></div>';
 
-    var sec = ls.value, q = latin($("#logSearch").value.trim());
+    var sec = ls.value, q = latin($("#logSearch").value.trim()), qp = plateKey(q);
     var rows = state.day.filter(function(e){
-      return (!sec || e.sector === sec) && (!q || e.name.indexOf(q) >= 0 || e.nid.indexOf(q) >= 0 || e.company.indexOf(q) >= 0);
+      return (!sec || e.sector === sec) && (!q || e.name.indexOf(q) >= 0 || e.nid.indexOf(q) >= 0 || e.company.indexOf(q) >= 0 ||
+        (qp && e.plate && plateKey(e.plate).indexOf(qp) >= 0));
     });
     $("#logBody").innerHTML = rows.length ? rows.map(function(e){
       return "<tr><td>" + (e.outMs ? '<span class="pill done">خرج</span>' : '<span class="pill in">جوه</span>') + "</td>" +
         "<td>"+esc(e.name)+"</td><td class=\"num\">"+esc(e.nid)+"</td><td>"+esc(e.sector)+"</td><td>"+esc(e.dest)+"</td>" +
-        "<td>"+esc(e.reason)+"</td><td>"+esc(e.company)+"</td><td class=\"num\">"+esc(e.inTime)+"</td>" +
+        "<td>"+esc(e.reason)+"</td><td>"+esc(e.company)+"</td>" +
+        "<td>"+(e.plate ? '<span class="plate">'+esc(e.plate)+'</span>' + (e.vehicle ? ' <span class="hint">'+esc(e.vehicle)+'</span>' : "") : "—")+"</td>" +
+        "<td class=\"num\">"+esc(e.inTime)+"</td>" +
         "<td class=\"num\">"+(e.outMs ? esc(e.outTime) : "—")+"</td><td class=\"num\">"+(e.outMs ? esc(e.duration) : "—")+"</td>" +
         "<td>"+esc(e.guardIn)+(e.guardOut && e.guardOut !== e.guardIn ? " / "+esc(e.guardOut) : "")+"</td>" +
-        "<td>"+(e.outMs ? "" : '<button class="sm out" data-out="'+esc(e.id)+'">خرج</button>')+"</td></tr>";
-    }).join("") : '<tr><td colspan="12" class="empty" style="text-align:center">مفيش حركة مسجلة في اليوم ده.</td></tr>';
+        "<td style=\"display:flex;gap:6px\"><button class=\"sm ghost\" type=\"button\" data-edit-entry=\""+esc(e.id)+"\">تعديل</button>"+(e.outMs ? "" : '<button class="sm out" data-out="'+esc(e.id)+'">خرج</button>')+"</td></tr>";
+    }).join("") : '<tr><td colspan="13" class="empty" style="text-align:center">مفيش حركة مسجلة في اليوم ده.</td></tr>';
     refreshDerived();
   }
   $("#logDay").addEventListener("change", refresh);
   $("#logSector").addEventListener("change", render);
   $("#logSearch").addEventListener("input", render);
   document.addEventListener("visibilitychange", function(){ if(!document.hidden && ME && !$("#viewGate").hidden) refresh(); });
+
+  // ---------- edit / delete entry ----------
+  var editId = null, delArmed = false, delT;
+  function findEntry(id){ return state.inside.concat(state.day).filter(function(x){ return x.id === id; })[0]; }
+  document.addEventListener("click", function(e){
+    var b = e.target.closest ? e.target.closest("button[data-edit-entry]") : null;
+    if(!b) return;
+    var x = findEntry(b.getAttribute("data-edit-entry")); if(!x) return;
+    editId = x.id;
+    $("#eTitle").textContent = "تعديل: " + x.name;
+    var map = { eName:"name", eNid:"nid", ePhone:"phone", eAddress:"address", eDest:"dest", eReason:"reason", eCompany:"company", eNotes:"notes", ePlate:"plate", eVehicle:"vehicle", eVehicleColor:"vehicleColor" };
+    Object.keys(map).forEach(function(k){ $("#"+k).value = x[map[k]] || ""; });
+    $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
+    $("#eMsg").textContent = "";
+    var canDel = ME.role === "admin" || ME.role === "manager";
+    $("#eDelete").hidden = !canDel; delArmed = false; $("#eDelete").textContent = "مسح الحركة";
+    $("#entryDlg").showModal();
+  });
+  $("#ePlate").addEventListener("blur", function(e){ e.target.value = plateNorm(e.target.value); });
+  $("#entryEditForm").addEventListener("submit", function(e){
+    if(e.submitter && e.submitter.value === "cancel") return;
+    e.preventDefault();
+    var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value), phone: latin($("#ePhone").value.trim()),
+      address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: $("#eReason").value.trim(),
+      company: $("#eCompany").value.trim(), notes: $("#eNotes").value.trim(),
+      plate: plateNorm($("#ePlate").value), vehicle: $("#eVehicle").value.trim(), vehicleColor: $("#eVehicleColor").value.trim() };
+    if(!d.name){ $("#eMsg").textContent = "اكتب الاسم."; return; }
+    if(!parseNid(d.nid)){ $("#eMsg").textContent = "الرقم القومي لازم يكون ١٤ رقم صحيح."; return; }
+    var btn = $("#eSave"); busy(btn, true, "بيحفظ…");
+    run("updateEntry", TOKEN, editId, d).then(function(){ $("#entryDlg").close(); toast("اتحفظ التعديل."); refresh(); })
+      .catch(function(err){ $("#eMsg").textContent = errMsg(err); })
+      .then(function(){ busy(btn, false, "حفظ التعديل"); });
+  });
+  $("#eDelete").addEventListener("click", function(){
+    var b = $("#eDelete");
+    if(!delArmed){ delArmed = true; b.textContent = "اضغط تاني للتأكيد"; clearTimeout(delT); delT = setTimeout(function(){ delArmed = false; b.textContent = "مسح الحركة"; }, 4000); return; }
+    busy(b, true, "بيمسح…");
+    run("deleteEntry", TOKEN, editId).then(function(){ $("#entryDlg").close(); toast("اتمسحت الحركة."); refresh(); })
+      .catch(function(err){ $("#eMsg").textContent = errMsg(err); })
+      .then(function(){ busy(b, false, "مسح الحركة"); delArmed = false; });
+  });
 
   // ================================================================ reports
   var report = null;
@@ -725,7 +868,9 @@ dialog form{padding:16px;display:grid;gap:12px}
     var avg = r.avgStayMin ? Math.floor(r.avgStayMin/60) + ":" + pad(r.avgStayMin%60) : "—";
     var perDay = r.byDay.length ? (r.total / r.byDay.length) : 0;
     $("#kpis").innerHTML = kpi("إجمالي مرات الدخول", fmt(r.total), "متوسط " + perDay.toFixed(1) + " في اليوم") +
-      kpi("أشخاص مختلفين", fmt(r.unique), "") + kpi("جوه دلوقتي", fmt(r.insideNow), "") + kpi("متوسط مدة التواجد", avg, "ساعة:دقيقة");
+      kpi("أشخاص مختلفين", fmt(r.unique), "") + kpi("جوه دلوقتي", fmt(r.insideNow), "") + kpi("متوسط مدة التواجد", avg, "ساعة:دقيقة") +
+      kpi("دخلوا بمركبة", fmt(r.withVehicle || 0), r.total ? Math.round((r.withVehicle||0) / r.total * 100) + "٪ من الداخلين" : "");
+    hbars($("#chVehicle"), r.vehicles);
 
     var days = r.byDay.map(function(d){ var p = d.k.split("-"); return { label: +p[2] + "/" + +p[1], tip: d.k, n: d.n }; });
     colChart($("#chDay"), days, Math.max(1, Math.ceil(days.length / 12)));

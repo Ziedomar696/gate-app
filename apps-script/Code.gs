@@ -21,7 +21,9 @@ const HEADERS = [
   'التاريخ', 'وقت الدخول', 'وقت الخروج', 'مدة التواجد (س:د)',
   'فرد الأمن (دخول)', 'فرد الأمن (خروج)',
   'ID', 'inMs', 'outMs',
-  'حساب الدخول', 'حساب الخروج'
+  'حساب الدخول', 'حساب الخروج',
+  'رقم اللوحة', 'المركبة', 'لون المركبة',
+  'آخر تعديل', 'محذوف'
 ];
 const COL = {};
 HEADERS.forEach(function (h, i) { COL[h] = i; });
@@ -337,7 +339,17 @@ function getState(token, day, gate) {
 
 function ocrId(token, base64, mime) {
   auth_(token);
-  const blob = Utilities.newBlob(Utilities.base64Decode(base64), mime || 'image/jpeg', 'id.jpg');
+  return parseIdText_(ocrText_(base64, mime));
+}
+
+/** صورة رخصة المركبة → رقم اللوحة والماركة واللون. */
+function ocrCar(token, base64, mime) {
+  auth_(token);
+  return parseCarText_(ocrText_(base64, mime));
+}
+
+function ocrText_(base64, mime) {
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64), mime || 'image/jpeg', 'scan.jpg');
   let fileId = null, text = '';
   try {
     const f = Drive.Files.create(
@@ -353,7 +365,7 @@ function ocrId(token, base64, mime) {
       catch (e) { try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e2) {} }
     }
   }
-  return parseIdText_(text);
+  return text;
 }
 
 function saveEntry(token, e) {
@@ -392,6 +404,9 @@ function saveEntry(token, e) {
     row[COL['ID']] = Utilities.getUuid();
     row[COL['inMs']] = now.getTime();
     row[COL['حساب الدخول']] = u.username;
+    row[COL['رقم اللوحة']] = plateNorm_(e.plate);
+    row[COL['المركبة']] = clean_(e.vehicle);
+    row[COL['لون المركبة']] = clean_(e.vehicleColor);
     ['الرقم القومي', 'رقم الموبايل', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
       if (row[COL[h]] !== '') row[COL[h]] = "'" + row[COL[h]];
     });
@@ -431,6 +446,71 @@ function checkout(token, id, guard) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/** رقم السطر في الشيت للحركة دي، أو 0. */
+function rowOf_(sh, id) {
+  const last = sh.getLastRow();
+  if (last < 2 || !id) return 0;
+  const ids = sh.getRange(2, COL['ID'] + 1, last - 1, 1).getValues();
+  for (let i = ids.length - 1; i >= 0; i--) if (ids[i][0] === id) return i + 2;
+  return 0;
+}
+
+/** تعديل بيانات حركة (أي حد على البوابة دي). */
+function updateEntry(token, id, e) {
+  const u = auth_(token);
+  const name = clean_(e.name), nid = digits_(e.nid);
+  if (!name) throw new Error('اكتب الاسم.');
+  const p = parseNid_(nid);
+  if (!p) throw new Error('الرقم القومي لازم يكون ١٤ رقم صحيح.');
+  const plate = plateNorm_(e.plate);
+  if (plate && (!/\d/.test(plate) || !/[ء-ي]/.test(plate))) throw new Error('اكتب رقم اللوحة كامل (حروف وأرقام)، أو امسحه.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const sh = logSheet_();
+    const r = rowOf_(sh, id);
+    if (!r) throw new Error('السطر مش موجود.');
+    const cur = sh.getRange(r, 1, 1, HEADERS.length).getValues()[0];
+    if (String(cur[COL['محذوف']] || '').trim()) throw new Error('الحركة دي اتمسحت.');
+    if (!canSee_(u, String(cur[COL['القطاع']]))) throw new Error('الحركة دي على بوابة ' + cur[COL['القطاع']] + '، وحسابك مش عليها.');
+    // مينفعش نفس الرقم القومي يبقى جوه مرتين
+    if (!Number(cur[COL['outMs']]) && digits_(cur[COL['الرقم القومي']]) !== nid) {
+      const other = rows_(3000).filter(function (x) { return !x.outMs && x.nid === nid && x.id !== id; })[0];
+      if (other) throw new Error('الرقم القومي ده لشخص متسجل جوه من ' + other.inTime + ' (' + other.sector + ').');
+    }
+    const set = function (h, v, text) { cur[COL[h]] = text && v !== '' ? "'" + v : v; };
+    set('الاسم', name); set('الرقم القومي', nid, true); set('تاريخ الميلاد', p.dob, true);
+    set('النوع', p.gender); set('المحافظة', p.gov);
+    set('العنوان', clean_(e.address)); set('رقم الموبايل', digits_(e.phone), true);
+    set('رايح فين', clean_(e.dest)); set('سبب الدخول', clean_(e.reason));
+    set('الشركة / صاحب العمل', clean_(e.company)); set('ملاحظات', clean_(e.notes));
+    set('رقم اللوحة', plate); set('المركبة', plate ? clean_(e.vehicle) : ''); set('لون المركبة', plate ? clean_(e.vehicleColor) : '');
+    set('آخر تعديل', u.username + ' ' + stamp_(new Date()));
+    // النصوص اللي كانت محفوظة كنص ترجع بعلامة ' علشان الشيت ما يحولهاش
+    ['التاريخ', 'وقت الدخول', 'وقت الخروج', 'مدة التواجد (س:د)'].forEach(function (h) {
+      const v = cur[COL[h]];
+      if (v instanceof Date) cur[COL[h]] = "'" + Utilities.formatDate(v, TZ, h === 'التاريخ' ? 'yyyy-MM-dd' : 'HH:mm');
+      else if (v !== '' && v != null) cur[COL[h]] = "'" + v;
+    });
+    sh.getRange(r, 1, 1, HEADERS.length).setValues([cur]);
+    return { ok: true };
+  } finally { lock.releaseLock(); }
+}
+
+/** مسح حركة (المدير والإدارة). السطر بيفضل في الشيت متعلّم عليه "محذوف". */
+function deleteEntry(token, id) {
+  const u = auth_(token, ['admin', 'manager']);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const sh = logSheet_();
+    const r = rowOf_(sh, id);
+    if (!r) throw new Error('السطر مش موجود.');
+    const sector = String(sh.getRange(r, COL['القطاع'] + 1).getValue());
+    if (!canSee_(u, sector)) throw new Error('الحركة دي على بوابة ' + sector + '، وحسابك مش عليها.');
+    sh.getRange(r, COL['محذوف'] + 1).setValue(u.username + ' ' + stamp_(new Date()));
+    return { ok: true };
+  } finally { lock.releaseLock(); }
 }
 
 // ================================================================ reports
@@ -474,6 +554,11 @@ function getReport(token, from, to, gate) {
     companies: count('company'),
     dests: count('dest'),
     govs: count('gov'),
+    withVehicle: rows.filter(function (r) { return r.plate; }).length,
+    vehicles: top_(rows.reduce(function (m, r) {
+      if (r.plate) { const k = String(r.vehicle || '').trim().split(/\s+/)[0] || 'غير محدد'; m[k] = (m[k] || 0) + 1; }
+      return m;
+    }, {}), 10),
     gender: { m: rows.filter(function (r) { return r.gender === 'ذكر'; }).length, f: rows.filter(function (r) { return r.gender === 'أنثى'; }).length },
     frequent: Object.keys(nids).map(function (k) { return nids[k]; }).filter(function (x) { return x.n > 1; })
       .sort(function (a, b) { return b.n - a.n; }).slice(0, 10),
@@ -505,7 +590,7 @@ function rows_(limit) {
       if (j === COL['inMs'] || j === COL['outMs']) return x;
       return x instanceof Date ? Utilities.formatDate(x, TZ, j === COL['التاريخ'] || j === COL['تاريخ الميلاد'] ? 'yyyy-MM-dd' : 'HH:mm') : String(x);
     });
-    if (!v[COL['ID']]) continue;
+    if (!v[COL['ID']] || String(v[COL['محذوف']] || '').trim()) continue;   // المحذوف مش بيظهر
     out.push({
       id: v[COL['ID']], name: v[COL['الاسم']], nid: v[COL['الرقم القومي']],
       gender: v[COL['النوع']], gov: v[COL['المحافظة']],
@@ -513,6 +598,9 @@ function rows_(limit) {
       company: v[COL['الشركة / صاحب العمل']], day: v[COL['التاريخ']],
       inTime: v[COL['وقت الدخول']], outTime: v[COL['وقت الخروج']], duration: v[COL['مدة التواجد (س:د)']],
       guardIn: v[COL['فرد الأمن (دخول)']], guardOut: v[COL['فرد الأمن (خروج)']],
+      plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
+      phone: v[COL['رقم الموبايل']] || '', address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
+      edited: v[COL['آخر تعديل']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
     });
@@ -587,6 +675,70 @@ function parseIdText_(text) {
   const name = nameLines.filter(function (l) { return !/[0-9٠-٩]/.test(l); }).join(' ').replace(/\s+/g, ' ').trim();
   const address = addrLines.join(' - ').replace(/\s*-\s*(-\s*)+/g, ' - ').trim();
   return { name: name, nationalId: nid, address: address, raw: raw.slice(0, 1500) };
+}
+
+// حروف لوحات مصر
+const PLATE_LETTERS = 'اأبجدرسصطعفقلمنهوىيك';
+
+/** "مسع1234" أو "١٢٣٤ ع س م" → "م س ع 1234" */
+function plateNorm_(s) {
+  s = latinDigits_(s).replace(/[إآ]/g, 'أ').replace(/ي/g, 'ى');
+  const letters = (s.match(/[ء-ي]/g) || []).join(' ');
+  const nums = (s.match(/\d/g) || []).join('');
+  return (letters + (letters && nums ? ' ' : '') + nums).trim();
+}
+
+/**
+ * بيطلّع رقم اللوحة والماركة واللون من نص رخصة المركبة.
+ * اللوحة: ١-٣ حروف لوحدها + ١-٤ أرقام (بأي ترتيب). السطر اللي فيه "لوحة" أو اللي بعده له الأولوية.
+ */
+function parseCarText_(text) {
+  const raw = String(text || '');
+  const lines = latinDigits_(raw).split(/\r?\n/)
+    .map(function (l) { return l.replace(/[ً-ْـ]/g, '').replace(/[|_:：.،,]/g, ' ').replace(/\s+/g, ' ').trim(); })
+    .filter(String);
+
+  const L = '[' + PLATE_LETTERS + 'إآ' + ']';
+  const lettersFirst = new RegExp('(?:^|[^\\u0621-\\u064A])((?:' + L + ' ?){1,3})\\s*(\\d{1,4})(?!\\d)');
+  const digitsFirst = new RegExp('(?:^|\\D)(\\d{1,4})\\s*((?:' + L + ' ?){1,3})(?![\\u0621-\\u064A])');
+  const tryLine = function (l) {
+    let m = l.match(lettersFirst);
+    if (m) return { letters: m[1], nums: m[2] };
+    m = l.match(digitsFirst);
+    if (m) return { letters: m[2], nums: m[1] };
+    return null;
+  };
+  const score = function (p, near) {
+    const spaced = /\s/.test(p.letters.trim());
+    return (near ? 10 : 0) + (spaced ? 3 : 0) + p.nums.length;
+  };
+
+  let best = null, bestScore = -1;
+  lines.forEach(function (l, i) {
+    const near = /لوح/.test(l) || (i > 0 && /لوح/.test(lines[i - 1]));
+    const p = tryLine(l.replace(/.*لوح[هة]?\s*(رقم)?/, ' '));
+    if (p) { const s = score(p, near); if (s > bestScore) { best = p; bestScore = s; } }
+  });
+  const plate = best ? plateNorm_(best.letters + ' ' + best.nums) : '';
+
+  const field = function (re) {
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(re);
+      if (!m) continue;
+      const v = (m[1] || '').trim() || (lines[i + 1] || '');
+      return v.replace(/[^؀-ۿa-zA-Z0-9\s\-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+    }
+    return '';
+  };
+  const brand = field(/(?:الماركه|الماركة|ماركه|ماركة)\s*(.*)$/);
+  const model = field(/(?:الطراز|الموديل|طراز)\s*(.*)$/);
+  const color = field(/(?:اللون|لون)\s*(.*)$/);
+  return {
+    plate: plate,
+    vehicle: [brand, model].filter(String).join(' ').replace(/\s+/g, ' ').trim(),
+    color: color,
+    raw: raw.slice(0, 1500)
+  };
 }
 
 function norm_(s) {
