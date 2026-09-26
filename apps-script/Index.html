@@ -11,6 +11,7 @@
   --bg:#EEF2F1; --surface:#FFFFFF; --surface-2:#F5F8F7; --ink:#10262E; --muted:#5C6E73; --line:#D5DFDD;
   --accent:#D99A1E; --accent-ink:#1A1405;
   --brand:#16414D; --brand-ink:#FFFFFF;
+  --bar:#2B6676; --bar-hover:#16414D; --grid:#E3EAE8;
   --ok:#23804F; --ok-soft:#E1F2E8; --warn:#B4531C; --warn-soft:#FBE7DA; --err:#B3261E;
   --radius:12px;
   --sans:"IBM Plex Sans Arabic","Segoe UI",Tahoma,system-ui,sans-serif;
@@ -22,6 +23,7 @@
     color-scheme:dark;
     --bg:#0D1A1E; --surface:#14252B; --surface-2:#1A2E35; --ink:#E6EEEC; --muted:#93A6AA; --line:#28404A;
     --accent:#E8AE3A; --accent-ink:#1A1405; --brand:#2B6676; --brand-ink:#FFFFFF;
+    --bar:#5FA8B8; --bar-hover:#8CC7D3; --grid:#223840;
     --ok:#4CC083; --ok-soft:#173A29; --warn:#EE8A52; --warn-soft:#3F2515; --err:#F2766E;
   }
 }
@@ -29,14 +31,21 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6}
 [hidden]{display:none!important}
-.wrap{max-width:1080px;margin:0 auto;padding-inline:16px;padding-block:calc(16px + env(safe-area-inset-top,0px)) 48px;display:grid;gap:18px}
-h1,h2{margin:0;line-height:1.3;text-wrap:balance}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:calc(14px + env(safe-area-inset-top,0px)) 48px;display:grid;gap:16px}
+h1,h2,h3{margin:0;line-height:1.3;text-wrap:balance}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
-.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 20px}
-.brandline{display:flex;align-items:center;gap:12px}
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.brandline{display:flex;align-items:center;gap:12px;min-width:0}
 .barrier{width:44px;height:44px;border-radius:10px;flex:none;background:repeating-linear-gradient(-45deg,var(--accent) 0 8px,var(--brand) 8px 16px)}
-.top h1{font-size:22px;font-weight:700}
+.top h1{font-size:20px;font-weight:700}
 .top p{margin:0;color:var(--muted);font-size:13px}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--surface-2);border:1px solid var(--line)}
+.chip.bad{background:var(--warn-soft);border-color:var(--warn)}
+.chip.role{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;padding:10px 14px;color:var(--muted);font-weight:600;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .stats{display:flex;gap:10px;flex-wrap:wrap}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 14px;display:flex;align-items:baseline;gap:8px}
 .stat b{font-size:20px}.stat span{color:var(--muted);font-size:12px}
@@ -44,13 +53,15 @@ h1,h2{margin:0;line-height:1.3;text-wrap:balance}
 .shift{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
 label.f{display:grid;gap:4px;font-size:12.5px;color:var(--muted);font-weight:500}
 input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--brand)}
 input:focus-visible,select:focus-visible,button:focus-visible,.scanbtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 input.flag{border-color:var(--warn);background:var(--warn-soft)}
-.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,4fr);gap:18px;align-items:start}
+.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,4fr);gap:16px;align-items:start}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:grid;gap:14px;min-width:0}
 .card h2{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .card h2 .tag{font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:99px;padding:1px 9px}
+.card h3{font-size:14px;font-weight:700}
 .scanrow{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap}
 .scanbtn{position:relative;flex:1 1 220px;display:flex;align-items:center;gap:12px;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:14px 16px;cursor:pointer;font-weight:700;font-size:16px}
 .scanbtn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
@@ -68,12 +79,11 @@ details.raw pre{white-space:pre-wrap;background:var(--surface-2);border:1px soli
 .fields .wide{grid-column:1/-1}
 @media (max-width:460px){.fields{grid-template-columns:1fr}}
 .derived{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:12px;border-radius:99px;padding:2px 10px;background:var(--surface-2);border:1px solid var(--line)}
-.chip.bad{background:var(--warn-soft);border-color:var(--warn)}
 .dupe{font-size:13px;background:var(--warn-soft);border:1px solid var(--warn);border-radius:8px;padding:8px 12px}
 .actions{display:flex;gap:10px;flex-wrap:wrap}
 button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 16px;font-weight:600}
 button.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);flex:1 1 180px;font-size:16px;padding:12px 16px}
+button.solid{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
 button.ghost{background:transparent}
 button:disabled{opacity:.5;cursor:not-allowed}
 button.sm{padding:5px 12px;font-size:13px}
@@ -85,134 +95,306 @@ button.out{background:var(--ok-soft);border-color:var(--ok)}
 .person button{grid-row:1/3;grid-column:2}
 .empty{color:var(--muted);font-size:13.5px;padding:10px 0}
 .empty ol{margin:6px 0 0;padding-inline-start:20px}
-.logbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.logbar label.f{flex:1 1 150px}.logbar .grow{flex:2 1 220px}
+.bar-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.bar-row label.f{flex:1 1 150px}.bar-row .grow{flex:2 1 220px}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
-table{border-collapse:collapse;width:100%;min-width:820px;font-size:13.5px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+table.wide{min-width:820px}
 th,td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line);white-space:nowrap}
 th{background:var(--surface-2);color:var(--muted);font-weight:600;font-size:12px}
 tr:last-child td{border-bottom:0}
 .pill{display:inline-block;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 9px}
 .pill.in{background:var(--ok-soft);color:var(--ok)}
 .pill.done{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
-.toast{position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));margin:auto;max-width:420px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:5}
-/* PIN screen */
+.pill.off{background:var(--warn-soft);color:var(--warn)}
+.toast{position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));margin:auto;max-width:420px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:50}
 .lock{min-height:100vh;display:grid;place-items:center;padding-inline:16px}
-.lock .card{width:100%;max-width:360px;text-align:center}
-.lock input{text-align:center;font-size:22px;letter-spacing:.3em}
+.lock .card{width:100%;max-width:380px}
+.lock .head{display:grid;justify-items:center;gap:8px;text-align:center}
+.lock .head p{margin:0;color:var(--muted);font-size:13px}
 .sync{font-size:12px;color:var(--muted)}
+/* reports */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;display:grid;gap:2px}
+.kpi span{color:var(--muted);font-size:12.5px}
+.kpi b{font-size:26px;line-height:1.2}
+.kpi small{color:var(--muted);font-size:12px}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.charts .full{grid-column:1/-1}
+@media (max-width:820px){.charts{grid-template-columns:1fr}}
+.col-chart{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 8px;direction:ltr}
+.col-axis{display:flex;flex-direction:column;justify-content:space-between;height:180px;font-size:11px;color:var(--muted);text-align:right;font-family:var(--mono)}
+.col-plot{position:relative;height:180px;display:flex;align-items:flex-end;gap:2px;border-bottom:1px solid var(--line);
+  background:linear-gradient(to top,transparent calc(50% - .5px),var(--grid) calc(50% - .5px),var(--grid) calc(50% + .5px),transparent calc(50% + .5px)),
+             linear-gradient(to bottom,var(--grid) 1px,transparent 1px)}
+.col{flex:1 1 0;min-width:2px;height:100%;display:flex;align-items:flex-end;cursor:default;position:relative}
+.col i{display:block;width:100%;background:var(--bar);border-radius:4px 4px 0 0;min-height:0}
+.col.zero i{height:1px!important;background:var(--line);border-radius:0}
+.col:hover i,.col:focus i{background:var(--bar-hover)}
+.col-labels{grid-column:2;display:flex;gap:2px;font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+.col-labels span{flex:1 1 0;min-width:0;text-align:center;overflow:hidden;white-space:nowrap}
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%);direction:rtl}
+.hbars{display:grid;gap:8px}
+.hbar{display:grid;grid-template-columns:minmax(80px,34%) minmax(0,1fr) auto;gap:8px;align-items:center;font-size:13px}
+.hbar .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hbar .track{height:14px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.hbar .track i{display:block;height:100%;background:var(--bar);border-radius:0 4px 4px 0}
+.hbar b{font-family:var(--mono);font-weight:500;font-size:12.5px;min-width:2ch;text-align:left}
+.split{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px;background:var(--surface)}
+.split i{display:block;height:100%}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:6px;background:var(--c);vertical-align:-1px}
+/* admin */
+dialog{border:1px solid var(--line);border-radius:var(--radius);padding:0;background:var(--surface);color:var(--ink);width:min(520px,calc(100vw - 32px));max-height:calc(100vh - 32px)}
+dialog::backdrop{background:rgba(8,20,24,.55)}
+dialog form{padding:16px;display:grid;gap:12px}
+.checks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.checks label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.gate-list{display:flex;flex-wrap:wrap;gap:8px}
+.gate-item{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 12px;background:var(--surface-2)}
+.gate-item.off{opacity:.6}
 </style>
 </head>
 <body>
 
+<!-- ============ دخول ============ -->
 <div class="lock" id="lockScreen">
-  <form class="card" id="pinForm">
-    <div class="barrier" style="margin:0 auto" aria-hidden="true"></div>
-    <h2 style="justify-content:center">سجل بوابة الأفراد</h2>
-    <label class="f">الرقم السري للبوابة
-      <input id="pin" type="password" inputmode="numeric" autocomplete="off" class="num">
-    </label>
-    <button class="primary" id="pinBtn">دخول</button>
-    <div class="status err" id="pinMsg" style="justify-content:center"></div>
-  </form>
+  <div class="card">
+    <div class="head">
+      <div class="barrier" aria-hidden="true"></div>
+      <h2>سجل بوابة الأفراد</h2>
+      <p id="lockSub">بيحمّل…</p>
+    </div>
+
+    <form id="loginForm" class="card" style="border:0;padding:0" hidden>
+      <label class="f">اسم المستخدم<input id="lgUser" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr"></label>
+      <label class="f">كلمة السر<input id="lgPass" type="password" autocomplete="current-password" dir="ltr"></label>
+      <button class="primary" id="lgBtn">دخول</button>
+      <div class="status err" id="lgMsg" style="justify-content:center"></div>
+    </form>
+
+    <form id="setupForm" class="card" style="border:0;padding:0" hidden>
+      <p class="hint">أول مرة: اعمل حساب الإدارة بتاعك. كود التفعيل هو قيمة <b dir="ltr">SETUP_CODE</b> في ملف Code.gs.</p>
+      <label class="f">كود التفعيل<input id="suCode" autocomplete="off" dir="ltr"></label>
+      <label class="f">اسمك<input id="suName" autocomplete="name"></label>
+      <label class="f">اسم المستخدم (إنجليزي صغير)<input id="suUser" autocomplete="username" autocapitalize="none" spellcheck="false" dir="ltr" placeholder="admin"></label>
+      <label class="f">كلمة السر (٦ على الأقل)<input id="suPass" type="password" autocomplete="new-password" dir="ltr"></label>
+      <button class="primary" id="suBtn">إنشاء حساب الإدارة</button>
+      <div class="status err" id="suMsg" style="justify-content:center"></div>
+    </form>
+  </div>
 </div>
 
+<!-- ============ التطبيق ============ -->
 <div class="wrap" id="app" hidden>
   <header class="top">
     <div class="brandline">
       <div class="barrier" aria-hidden="true"></div>
       <div>
         <h1>سجل بوابة الأفراد</h1>
-        <p>تسجيل دخول وخروج العمالة والأفراد بدون تصريح <span class="sync" id="sync"></span></p>
+        <p>تسجيل دخول وخروج العمالة والأفراد <span class="sync" id="sync"></span></p>
       </div>
     </div>
+    <div class="who">
+      <span class="chip role" id="meRole"></span>
+      <span id="meName" style="font-weight:600"></span>
+      <button class="sm ghost" id="pwBtn" type="button">كلمة السر</button>
+      <button class="sm ghost" id="logoutBtn" type="button">خروج</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" hidden>
+    <button role="tab" data-view="gate" aria-selected="true">البوابة</button>
+    <button role="tab" data-view="reports" data-roles="admin,manager">التقارير</button>
+    <button role="tab" data-view="users" data-roles="admin">المستخدمين والبوابات</button>
+  </nav>
+
+  <!-- ---------- البوابة ---------- -->
+  <section id="viewGate" style="display:grid;gap:16px">
     <div class="stats">
       <div class="stat inside"><b class="num" id="stInside">0</b><span>جوه دلوقتي</span></div>
       <div class="stat"><b class="num" id="stToday">0</b><span>دخلوا النهارده</span></div>
     </div>
-  </header>
 
-  <section class="shift" aria-label="بيانات الوردية">
-    <label class="f">اسم فرد الأمن على البوابة
-      <input id="guard" placeholder="مثال: محمود عبد الله" autocomplete="off">
-    </label>
-    <label class="f">القطاع / البوابة
-      <input id="sector" list="sectors" placeholder="اختار أو اكتب القطاع" autocomplete="off">
-      <datalist id="sectors"></datalist>
-    </label>
+    <section class="shift" aria-label="بيانات الوردية">
+      <label class="f">اسم فرد الأمن على البوابة
+        <input id="guard" placeholder="مثال: محمود عبد الله" autocomplete="off">
+      </label>
+      <label class="f">البوابة
+        <select id="sector"></select>
+      </label>
+    </section>
+
+    <div class="grid2">
+      <form class="card" id="entryForm" autocomplete="off" novalidate>
+        <h2>تسجيل دخول <span class="tag">صوّر وش البطاقة</span></h2>
+        <div class="scanrow">
+          <label class="scanbtn" id="scanBtn">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="6" y="7.5" width="12" height="9" rx="1.5"/><circle cx="9.5" cy="11" r="1.4"/><path d="M13 10.5h3M13 13h3M8 14.5h3"/></svg>
+            <span>صوّر البطاقة<small>صوّرها مفرودة وقريبة وفي نور كويس</small></span>
+            <input type="file" id="idPhoto" accept="image/*" capture="environment" aria-label="صورة البطاقة">
+          </label>
+          <div class="thumb" id="thumb">مفيش صورة</div>
+        </div>
+        <div class="status" id="scanStatus" aria-live="polite">الصورة بتتقري وبتتمسح، مش بتتحفظ.</div>
+        <details class="raw" id="rawBox" hidden><summary>النص اللي اتقرا من البطاقة</summary><pre id="rawText"></pre></details>
+
+        <div class="fields">
+          <label class="f wide">الاسم بالكامل<input id="name"></label>
+          <label class="f">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
+          <label class="f">رقم الموبايل<input id="phone" inputmode="tel" class="num" style="text-align:right"></label>
+          <div class="derived wide" id="derived"></div>
+          <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
+          <label class="f">رايح فين (وحدة / موقع)<input id="dest" placeholder="مثال: فيلا 42"></label>
+          <label class="f">سبب الدخول
+            <input id="reason" list="reasons" placeholder="اختار أو اكتب">
+            <datalist id="reasons"><option value="أعمال صيانة"></option><option value="تشطيبات"></option><option value="نظافة"></option><option value="زراعة وحدائق"></option><option value="توريد / توصيل"></option><option value="نقل عفش"></option></datalist>
+          </label>
+          <label class="f">الشركة / المقاول / صاحب العمل<input id="company"></label>
+          <label class="f">ملاحظات<input id="notes"></label>
+        </div>
+        <div class="dupe" id="dupe" hidden></div>
+        <div class="actions">
+          <button type="submit" class="primary" id="saveBtn">تسجيل الدخول الآن</button>
+          <button type="button" class="ghost" id="clearBtn">مسح الخانات</button>
+        </div>
+      </form>
+
+      <section class="card" aria-labelledby="insideH">
+        <h2 id="insideH">جوه دلوقتي <span class="tag" id="insideTag"></span></h2>
+        <div class="inside-list" id="insideList"><div class="empty">بيحمّل…</div></div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="logH">
+      <h2 id="logH">سجل الحركة</h2>
+      <div class="bar-row">
+        <label class="f">اليوم<input type="date" id="logDay"></label>
+        <label class="f">البوابة<select id="logSector"><option value="">كل البوابات</option></select></label>
+        <label class="f grow">بحث بالاسم أو الرقم القومي أو الشركة<input id="logSearch" type="search"></label>
+      </div>
+      <div class="tablewrap">
+        <table class="wide">
+          <thead><tr><th>الحالة</th><th>الاسم</th><th>الرقم القومي</th><th>البوابة</th><th>رايح فين</th><th>السبب</th><th>الشركة</th><th>دخول</th><th>خروج</th><th>المدة</th><th>فرد الأمن</th><th></th></tr></thead>
+          <tbody id="logBody"></tbody>
+        </table>
+      </div>
+    </section>
   </section>
 
-  <div class="grid2">
-    <form class="card" id="entryForm" autocomplete="off" novalidate>
-      <h2>تسجيل دخول <span class="tag">صوّر وش البطاقة</span></h2>
-      <div class="scanrow">
-        <label class="scanbtn" id="scanBtn">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="6" y="7.5" width="12" height="9" rx="1.5"/><circle cx="9.5" cy="11" r="1.4"/><path d="M13 10.5h3M13 13h3M8 14.5h3"/></svg>
-          <span>صوّر البطاقة<small>صوّرها مفرودة وقريبة وفي نور كويس</small></span>
-          <input type="file" id="idPhoto" accept="image/*" capture="environment" aria-label="صورة البطاقة">
-        </label>
-        <div class="thumb" id="thumb">مفيش صورة</div>
+  <!-- ---------- التقارير ---------- -->
+  <section id="viewReports" style="display:grid;gap:16px" hidden>
+    <div class="card">
+      <div class="bar-row">
+        <label class="f">من<input type="date" id="rpFrom"></label>
+        <label class="f">إلى<input type="date" id="rpTo"></label>
+        <label class="f">البوابة<select id="rpGate"><option value="">كل البوابات</option></select></label>
+        <button class="solid" id="rpGo" type="button">عرض</button>
       </div>
-      <div class="status" id="scanStatus" aria-live="polite">الصورة بتتقري وبتتمسح، مش بتتحفظ.</div>
-      <details class="raw" id="rawBox" hidden><summary>النص اللي اتقرا من البطاقة</summary><pre id="rawText"></pre></details>
+      <div class="quick">
+        <button class="sm" type="button" data-range="0">النهارده</button>
+        <button class="sm" type="button" data-range="6">آخر ٧ أيام</button>
+        <button class="sm" type="button" data-range="29">آخر ٣٠ يوم</button>
+        <button class="sm" type="button" data-range="89">آخر ٣ شهور</button>
+      </div>
+      <div class="status" id="rpStatus"></div>
+    </div>
 
-      <div class="fields">
-        <label class="f wide">الاسم بالكامل<input id="name"></label>
-        <label class="f">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
-        <label class="f">رقم الموبايل<input id="phone" inputmode="tel" class="num" style="text-align:right"></label>
-        <div class="derived wide" id="derived"></div>
-        <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
-        <label class="f">رايح فين (وحدة / موقع)<input id="dest" placeholder="مثال: فيلا 42"></label>
-        <label class="f">سبب الدخول
-          <input id="reason" list="reasons" placeholder="اختار أو اكتب">
-          <datalist id="reasons"><option value="أعمال صيانة"></option><option value="تشطيبات"></option><option value="نظافة"></option><option value="زراعة وحدائق"></option><option value="توريد / توصيل"></option><option value="نقل عفش"></option></datalist>
-        </label>
-        <label class="f">الشركة / المقاول / صاحب العمل<input id="company"></label>
-        <label class="f">ملاحظات<input id="notes"></label>
-      </div>
-      <div class="dupe" id="dupe" hidden></div>
-      <div class="actions">
-        <button type="submit" class="primary" id="saveBtn">تسجيل الدخول الآن</button>
-        <button type="button" class="ghost" id="clearBtn">مسح الخانات</button>
-      </div>
-    </form>
+    <div class="kpis" id="kpis"></div>
 
-    <section class="card" aria-labelledby="insideH">
-      <h2 id="insideH">جوه دلوقتي <span class="tag" id="insideTag">كل القطاعات</span></h2>
-      <div class="inside-list" id="insideList"><div class="empty">بيحمّل…</div></div>
+    <div class="charts">
+      <section class="card full"><h3>عدد الداخلين في اليوم</h3><div id="chDay"></div></section>
+      <section class="card full"><h3>ساعات الذروة <span class="hint" style="font-weight:400">(وقت الدخول)</span></h3><div id="chHour"></div></section>
+      <section class="card"><h3>حسب البوابة</h3><div id="chGate"></div></section>
+      <section class="card"><h3>سبب الدخول</h3><div id="chReason"></div></section>
+      <section class="card"><h3>أكتر الشركات / المقاولين</h3><div id="chCompany"></div></section>
+      <section class="card"><h3>أكتر الأماكن اللي راحوا لها</h3><div id="chDest"></div></section>
+      <section class="card"><h3>المحافظات</h3><div id="chGov"></div></section>
+      <section class="card"><h3>النوع</h3><div id="chGender"></div></section>
+      <section class="card full"><h3>جوه بقالهم أكتر من ١٢ ساعة</h3><div id="tbOver"></div></section>
+      <section class="card full"><h3>أكتر ناس اتكرر دخولهم</h3><div id="tbFreq"></div></section>
+    </div>
+  </section>
+
+  <!-- ---------- المستخدمين ---------- -->
+  <section id="viewUsers" style="display:grid;gap:16px" hidden>
+    <section class="card">
+      <h2>المستخدمين <button class="sm solid" id="addUserBtn" type="button" style="margin-inline-start:auto">+ مستخدم جديد</button></h2>
+      <p class="hint">«بوابة»: بيسجّل على بوابته بس. «مدير»: البوابات اللي تحددها + التقارير. «الإدارة»: كل حاجة + المستخدمين.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>البوابات</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
+          <tbody id="usersBody"><tr><td colspan="7" class="empty">بيحمّل…</td></tr></tbody>
+        </table>
+      </div>
     </section>
-  </div>
-
-  <section class="card" aria-labelledby="logH">
-    <h2 id="logH">سجل الحركة</h2>
-    <div class="logbar">
-      <label class="f">اليوم<input type="date" id="logDay"></label>
-      <label class="f">القطاع<select id="logSector"><option value="">كل القطاعات</option></select></label>
-      <label class="f grow">بحث بالاسم أو الرقم القومي أو الشركة<input id="logSearch" type="search"></label>
-    </div>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>الحالة</th><th>الاسم</th><th>الرقم القومي</th><th>القطاع</th><th>رايح فين</th><th>السبب</th><th>الشركة</th><th>دخول</th><th>خروج</th><th>المدة</th><th>فرد الأمن</th><th></th></tr></thead>
-        <tbody id="logBody"></tbody>
-      </table>
-    </div>
+    <section class="card">
+      <h2>البوابات</h2>
+      <div class="gate-list" id="gateList"></div>
+      <form class="bar-row" id="gateForm">
+        <label class="f grow">بوابة جديدة<input id="newGate" placeholder="اسم البوابة / القطاع"></label>
+        <button class="solid" type="submit">إضافة</button>
+      </form>
+      <p class="hint">البوابة الموقوفة بتختفي من التسجيل، بس حركتها القديمة بتفضل في السجل والتقارير.</p>
+    </section>
   </section>
 </div>
+
+<!-- ============ نوافذ ============ -->
+<dialog id="userDlg">
+  <form method="dialog" id="userForm">
+    <h2 id="userDlgTitle">مستخدم جديد</h2>
+    <label class="f">الاسم<input id="uName" placeholder="مثال: بوابة فيرونا 1"></label>
+    <label class="f">اسم المستخدم (إنجليزي صغير أو أرقام)<input id="uUser" dir="ltr" autocapitalize="none" spellcheck="false" placeholder="verona1"></label>
+    <label class="f">الدور
+      <select id="uRole"><option value="gate">بوابة</option><option value="manager">مدير</option><option value="admin">الإدارة</option></select>
+    </label>
+    <div class="f" style="display:grid;gap:6px;font-size:12.5px;color:var(--muted)">
+      <span id="uGatesLbl">البوابة</span>
+      <div class="checks" id="uGates"></div>
+    </div>
+    <label class="f"><span id="uPassLbl">كلمة السر</span><input id="uPass" type="text" dir="ltr" autocomplete="new-password"></label>
+    <label class="checks" id="uActiveRow"><input type="checkbox" id="uActive" checked> الحساب شغال</label>
+    <div class="status err" id="uMsg"></div>
+    <div class="actions">
+      <button class="primary" id="uSave" value="save">حفظ</button>
+      <button class="ghost" value="cancel" formnovalidate>إلغاء</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pwDlg">
+  <form method="dialog" id="pwForm">
+    <h2>تغيير كلمة السر</h2>
+    <label class="f">كلمة السر الحالية<input id="pwOld" type="password" dir="ltr" autocomplete="current-password"></label>
+    <label class="f">كلمة السر الجديدة (٦ على الأقل)<input id="pwNew" type="password" dir="ltr" autocomplete="new-password"></label>
+    <div class="status err" id="pwMsg"></div>
+    <div class="actions">
+      <button class="primary" value="save">حفظ</button>
+      <button class="ghost" value="cancel" formnovalidate>إلغاء</button>
+    </div>
+  </form>
+</dialog>
 
 <div class="toast" id="toast" hidden role="status"></div>
 
 <script>
 (function(){
   var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
   var store = {
     get: function(k){ try{ return localStorage.getItem(k) || ""; }catch(e){ return ""; } },
     set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
   };
   var GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
-  var DEFAULT_SECTORS = ["Arezzo","Verona","Isola","Veneto"];
+  var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", gate: "بوابة" };
 
-  var PIN = store.get("gate.pin");
-  var state = { inside: [], day: [], todayCount: 0, sectors: [], today: "" };
+  var TOKEN = store.get("gate.token");
+  var ME = null, MYGATES = [];
+  var state = { inside: [], day: [], todayCount: 0, today: "" };
+  var admin = { users: [], gates: [] };
 
   // ---------- server calls ----------
   function run(fn){
@@ -224,18 +406,20 @@ tr:last-child td{border-bottom:0}
   }
   function errMsg(e){
     var m = (e && e.message) || String(e || "");
-    if(m.indexOf("PIN_WRONG") >= 0){ logout(); return "الرقم السري غلط."; }
+    if(/\bAUTH\b/.test(m)){ logout(); return "انتهت الجلسة. سجّل دخول تاني."; }
     return m.replace(/^(Exception|Error):\s*/, "") || "حصلت مشكلة. جرّب تاني.";
   }
 
   // ---------- helpers ----------
   function pad(n){ return (n < 10 ? "0" : "") + n; }
   function dayKey(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function addDays(key, n){ var p = key.split("-").map(Number); return dayKey(new Date(p[0], p[1]-1, p[2]+n)); }
   function hm(ms){ var d = new Date(ms); return pad(d.getHours())+":"+pad(d.getMinutes()); }
   function dur(a,b){ var m = Math.max(0, Math.round((b-a)/60000)); return Math.floor(m/60)+":"+pad(m%60); }
   function latin(s){ return String(s||"").replace(/[٠-٩]/g, function(d){ return "٠١٢٣٤٥٦٧٨٩".indexOf(d); }).replace(/[۰-۹]/g, function(d){ return "۰۱۲۳۴۵۶۷۸۹".indexOf(d); }); }
   function cleanNid(s){ return latin(s).replace(/\D/g,""); }
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function fmt(n){ return Number(n||0).toLocaleString("en-US"); }
   function parseNid(n){
     if(!/^\d{14}$/.test(n)) return null;
     var c = n[0], century = c === "2" ? 1900 : c === "3" ? 2000 : null;
@@ -253,27 +437,101 @@ tr:last-child td{border-bottom:0}
     s.innerHTML = (busy ? '<span class="spin" aria-hidden="true"></span>' : "") + "<span></span>";
     s.lastChild.textContent = msg;
   }
+  function busy(btn, on, label){ btn.disabled = on; if(label) btn.textContent = label; }
 
-  // ---------- PIN ----------
-  function logout(){ PIN = ""; store.set("gate.pin",""); $("#app").hidden = true; $("#lockScreen").hidden = false; }
-  $("#pinForm").addEventListener("submit", function(e){
+  // ================================================================ login
+  function showLock(mode){
+    $("#app").hidden = true; $("#lockScreen").hidden = false;
+    $("#loginForm").hidden = mode !== "login";
+    $("#setupForm").hidden = mode !== "setup";
+    $("#lockSub").textContent = mode === "setup" ? "تجهيز أول مرة" : mode === "login" ? "سجّل دخول بحسابك" : "بيحمّل…";
+    var f = mode === "setup" ? $("#suCode") : $("#lgUser");
+    if(f) setTimeout(function(){ f.focus(); }, 50);
+  }
+  function logout(){
+    TOKEN = ""; ME = null; store.set("gate.token", "");
+    clearInterval(timer);
+    $("#lgPass").value = "";
+    run("needsSetup").then(function(n){ showLock(n ? "setup" : "login"); }).catch(function(){ showLock("login"); });
+  }
+  function signedIn(r){
+    TOKEN = r.token || TOKEN; store.set("gate.token", TOKEN);
+    ME = r.me; MYGATES = r.gates || [];
+    start();
+  }
+  $("#loginForm").addEventListener("submit", function(e){
     e.preventDefault();
-    var p = $("#pin").value.trim(); if(!p) return;
-    $("#pinBtn").disabled = true; $("#pinMsg").textContent = "";
-    run("checkPin", p).then(function(){
-      PIN = p; store.set("gate.pin", p); start();
-    }).catch(function(err){
-      $("#pinMsg").textContent = (err && String(err.message).indexOf("PIN_WRONG") >= 0) ? "الرقم السري غلط." : errMsg(err);
-    }).then(function(){ $("#pinBtn").disabled = false; });
+    var u = $("#lgUser").value.trim(), p = $("#lgPass").value;
+    if(!u || !p){ $("#lgMsg").textContent = "اكتب اسم المستخدم وكلمة السر."; return; }
+    busy($("#lgBtn"), true); $("#lgMsg").textContent = "";
+    run("login", u, p).then(signedIn).catch(function(err){ $("#lgMsg").textContent = errMsg(err); })
+      .then(function(){ busy($("#lgBtn"), false); });
+  });
+  $("#setupForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    busy($("#suBtn"), true); $("#suMsg").textContent = "";
+    run("setupAdmin", $("#suCode").value.trim(), $("#suUser").value.trim().toLowerCase(), $("#suName").value.trim(), $("#suPass").value)
+      .then(function(r){ signedIn(r); toast("اتعمل حساب الإدارة. ابدأ ضيف المستخدمين."); showView("users"); })
+      .catch(function(err){ $("#suMsg").textContent = errMsg(err); })
+      .then(function(){ busy($("#suBtn"), false); });
+  });
+  $("#logoutBtn").addEventListener("click", logout);
+
+  // ---------- password ----------
+  $("#pwBtn").addEventListener("click", function(){ $("#pwOld").value = ""; $("#pwNew").value = ""; $("#pwMsg").textContent = ""; $("#pwDlg").showModal(); });
+  $("#pwForm").addEventListener("submit", function(e){
+    if(e.submitter && e.submitter.value === "cancel") return;
+    e.preventDefault();
+    run("changeMyPassword", TOKEN, $("#pwOld").value, $("#pwNew").value).then(function(t){
+      TOKEN = t; store.set("gate.token", t); $("#pwDlg").close(); toast("اتغيّرت كلمة السر.");
+    }).catch(function(err){ $("#pwMsg").textContent = errMsg(err); });
   });
 
-  // ---------- shift ----------
-  $("#guard").value = store.get("gate.guard");
-  $("#sector").value = store.get("gate.sector");
-  $("#guard").addEventListener("change", function(e){ store.set("gate.guard", e.target.value.trim()); });
-  $("#sector").addEventListener("change", function(e){ store.set("gate.sector", e.target.value.trim()); render(); });
+  // ================================================================ views
+  function showView(v){
+    $$("#tabs button").forEach(function(b){ b.setAttribute("aria-selected", String(b.getAttribute("data-view") === v)); });
+    $("#viewGate").hidden = v !== "gate";
+    $("#viewReports").hidden = v !== "reports";
+    $("#viewUsers").hidden = v !== "users";
+    if(v === "reports" && !report) loadReport();
+    if(v === "users") loadAdmin();
+  }
+  $("#tabs").addEventListener("click", function(e){ var b = e.target.closest("button[data-view]"); if(b) showView(b.getAttribute("data-view")); });
 
-  // ---------- national id ----------
+  var timer;
+  function start(){
+    $("#lockScreen").hidden = true; $("#app").hidden = false;
+    $("#meName").textContent = ME.name;
+    $("#meRole").textContent = ROLE_LABEL[ME.role] || ME.role;
+    var visible = 0;
+    $$("#tabs button").forEach(function(b){
+      var roles = b.getAttribute("data-roles");
+      var ok = !roles || roles.split(",").indexOf(ME.role) >= 0;
+      b.hidden = !ok; if(ok) visible++;
+    });
+    $("#tabs").hidden = visible < 2;
+    fillGateSelects();
+    if(!$("#logDay").value) $("#logDay").value = dayKey(new Date());
+    showView("gate");
+    refresh();
+    clearInterval(timer);
+    timer = setInterval(function(){ if(!document.hidden && !$("#viewGate").hidden) refresh(); }, 30000);
+  }
+
+  function fillGateSelects(){
+    var sel = $("#sector"), saved = store.get("gate.sector");
+    sel.innerHTML = MYGATES.map(function(g){ return "<option>"+esc(g)+"</option>"; }).join("") || '<option value="">مفيش بوابات متاحة لحسابك</option>';
+    if(MYGATES.indexOf(saved) >= 0) sel.value = saved;
+    sel.disabled = MYGATES.length < 2;
+    var opts = '<option value="">كل البوابات</option>' + MYGATES.map(function(g){ return "<option>"+esc(g)+"</option>"; }).join("");
+    ["#rpGate"].forEach(function(id){ var s = $(id), cur = s.value; s.innerHTML = opts; s.value = MYGATES.indexOf(cur) >= 0 ? cur : ""; });
+  }
+
+  // ================================================================ gate
+  $("#guard").value = store.get("gate.guard");
+  $("#guard").addEventListener("change", function(e){ store.set("gate.guard", e.target.value.trim()); });
+  $("#sector").addEventListener("change", function(e){ store.set("gate.sector", e.target.value); refresh(); });
+
   function refreshDerived(){
     var raw = $("#nid").value, n = cleanNid(raw), box = $("#derived"), inp = $("#nid");
     if(!raw.trim()){ box.innerHTML = ""; inp.classList.remove("flag"); $("#dupe").hidden = true; return; }
@@ -287,12 +545,11 @@ tr:last-child td{border-bottom:0}
     }
     var inside = state.inside.filter(function(e){ return e.nid === n; })[0];
     var d = $("#dupe");
-    if(n.length === 14 && inside){ d.hidden = false; d.textContent = "الشخص ده متسجل جوه من " + inside.inTime + " (" + (inside.sector || "بدون قطاع") + ") ولسه ماخرجش. سجّل خروجه الأول."; }
+    if(n.length === 14 && inside){ d.hidden = false; d.textContent = "الشخص ده متسجل جوه من " + inside.inTime + " (" + (inside.sector || "بدون بوابة") + ") ولسه ماخرجش. سجّل خروجه الأول."; }
     else d.hidden = true;
   }
   $("#nid").addEventListener("input", refreshDerived);
 
-  // ---------- scan ----------
   function shrink(file){
     return new Promise(function(res, rej){
       var img = new Image(), url = URL.createObjectURL(file);
@@ -316,7 +573,7 @@ tr:last-child td{border-bottom:0}
     $("#rawBox").hidden = true;
     shrink(file).then(function(dataUrl){
       var th = $("#thumb"); th.textContent = ""; th.style.backgroundImage = "url('" + dataUrl + "')";
-      return run("ocrId", PIN, dataUrl.split(",")[1], "image/jpeg");
+      return run("ocrId", TOKEN, dataUrl.split(",")[1], "image/jpeg");
     }).then(function(r){
       if(r.name) $("#name").value = r.name;
       if(r.nationalId) $("#nid").value = r.nationalId;
@@ -325,7 +582,7 @@ tr:last-child td{border-bottom:0}
       refreshDerived();
       var ok = parseNid(cleanNid($("#nid").value));
       if(!r.name && !r.nationalId) status("ماقدرتش أقرا البطاقة. صوّر تاني في نور أحسن، أو اكتب البيانات بإيدك.", "err");
-      else status(ok ? "اتقرت. راجع الاسم والرقم مع البطاقة قبل التسجيل." : "اتقرت، بس الرقم القومي محتاج مراجعة. صلّحه من البطاقة.", ok ? "ok" : "err");
+      else status(ok ? "اتقرت. راجع الاسم والعنوان والرقم مع البطاقة قبل التسجيل." : "اتقرت، بس الرقم القومي محتاج مراجعة. صلّحه من البطاقة.", ok ? "ok" : "err");
     }).catch(function(err){
       status(errMsg(err), "err");
     }).then(function(){ $("#scanBtn").classList.remove("busy"); });
@@ -340,26 +597,25 @@ tr:last-child td{border-bottom:0}
   }
   $("#clearBtn").addEventListener("click", clearForm);
 
-  // ---------- save / checkout ----------
   $("#entryForm").addEventListener("submit", function(e){
     e.preventDefault();
     var entry = {
-      guard: $("#guard").value.trim(), sector: $("#sector").value.trim(),
+      guard: $("#guard").value.trim(), sector: $("#sector").value,
       name: $("#name").value.trim(), nid: cleanNid($("#nid").value), phone: latin($("#phone").value.trim()),
       address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: $("#reason").value.trim(),
       company: $("#company").value.trim(), notes: $("#notes").value.trim()
     };
     if(!entry.guard){ toast("اكتب اسم فرد الأمن الأول."); $("#guard").focus(); return; }
-    if(!entry.sector){ toast("اختار القطاع الأول."); $("#sector").focus(); return; }
+    if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
     if(!entry.name){ toast("اكتب الاسم."); $("#name").focus(); return; }
     if(!parseNid(entry.nid)){ toast("الرقم القومي لازم يكون ١٤ رقم صحيح."); $("#nid").focus(); return; }
-    store.set("gate.guard", entry.guard); store.set("gate.sector", entry.sector);
-    var btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "بيسجل…";
-    run("saveEntry", PIN, entry).then(function(r){
+    store.set("gate.guard", entry.guard);
+    var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
+    run("saveEntry", TOKEN, entry).then(function(r){
       toast("اتسجل دخول " + entry.name.split(" ")[0] + " الساعة " + r.time);
       clearForm(); refresh();
     }).catch(function(err){ toast(errMsg(err)); })
-    .then(function(){ btn.disabled = false; btn.textContent = "تسجيل الدخول الآن"; });
+    .then(function(){ busy(btn, false, "تسجيل الدخول الآن"); });
   });
 
   document.addEventListener("click", function(e){
@@ -367,43 +623,41 @@ tr:last-child td{border-bottom:0}
     if(!b) return;
     var guard = $("#guard").value.trim();
     if(!guard){ toast("اكتب اسم فرد الأمن الأول."); $("#guard").focus(); return; }
-    b.disabled = true; b.textContent = "…";
-    run("checkout", PIN, b.getAttribute("data-out"), guard).then(function(){ toast("اتسجل الخروج."); refresh(); })
-      .catch(function(err){ toast(errMsg(err)); b.disabled = false; b.textContent = "خرج"; });
+    busy(b, true, "…");
+    run("checkout", TOKEN, b.getAttribute("data-out"), guard).then(function(){ toast("اتسجل الخروج."); refresh(); })
+      .catch(function(err){ toast(errMsg(err)); busy(b, false, "خرج"); });
   });
 
-  // ---------- load & render ----------
   var loading = false;
   function refresh(){
-    if(!PIN || loading) return;
+    if(!TOKEN || loading) return;
     loading = true;
-    run("getState", PIN, $("#logDay").value).then(function(s){
-      state = s; render();
+    run("getState", TOKEN, $("#logDay").value, $("#sector").value).then(function(s){
+      state = s;
+      if(s.gates && s.gates.join("|") !== MYGATES.join("|")){ MYGATES = s.gates; fillGateSelects(); }
+      render();
       $("#sync").textContent = "· آخر تحديث " + hm(Date.now());
     }).catch(function(err){ toast(errMsg(err)); })
     .then(function(){ loading = false; });
   }
 
   function render(){
+    var g = $("#sector").value;
     $("#stInside").textContent = state.inside.length;
     $("#stToday").textContent = state.todayCount;
-    var all = DEFAULT_SECTORS.concat(state.sectors).filter(function(v,i,a){ return a.indexOf(v) === i; });
-    $("#sectors").innerHTML = all.map(function(s){ return '<option value="'+esc(s)+'"></option>'; }).join("");
     var ls = $("#logSector"), cur = ls.value;
-    ls.innerHTML = '<option value="">كل القطاعات</option>' + state.sectors.map(function(s){ return '<option>'+esc(s)+'</option>'; }).join("");
-    ls.value = state.sectors.indexOf(cur) >= 0 ? cur : "";
+    var sectors = state.day.map(function(r){ return r.sector; }).concat(MYGATES).filter(function(v,i,a){ return v && a.indexOf(v) === i; });
+    ls.innerHTML = '<option value="">كل البوابات</option>' + sectors.map(function(s){ return '<option>'+esc(s)+'</option>'; }).join("");
+    ls.value = sectors.indexOf(cur) >= 0 ? cur : "";
 
-    var my = $("#sector").value.trim();
-    var shown = my ? state.inside.filter(function(e){ return e.sector === my; }) : state.inside;
-    $("#insideTag").textContent = (my ? "قطاع " + my : "كل القطاعات") + " · " + shown.length;
+    $("#insideTag").textContent = (g ? "بوابة " + g : "") + " · " + state.inside.length;
     var now = Date.now();
-    $("#insideList").innerHTML = shown.length ? shown.map(function(e){
+    $("#insideList").innerHTML = state.inside.length ? state.inside.map(function(e){
       return '<div class="person"><div class="nm">'+esc(e.name)+'</div><div class="meta">' +
         '<span>دخل <span class="num">'+esc(e.inTime)+'</span> · من <span class="num">'+dur(e.inMs, now)+'</span> س</span>' +
         (e.dest ? "<span>"+esc(e.dest)+"</span>" : "") + (e.company ? "<span>"+esc(e.company)+"</span>" : "") +
-        (my ? "" : "<span>"+esc(e.sector)+"</span>") +
         '</div><button class="sm out" data-out="'+esc(e.id)+'">خرج</button></div>';
-    }).join("") : '<div class="empty">مفيش حد جوه' + (my ? " في القطاع ده" : "") + ' دلوقتي.<ol><li>صوّر وش البطاقة.</li><li>راجع الاسم والرقم واكتب رايح فين.</li><li>اضغط «تسجيل الدخول الآن»، ولما يخرج اضغط «خرج».</li></ol></div>';
+    }).join("") : '<div class="empty">مفيش حد جوه' + (g ? " في البوابة دي" : "") + ' دلوقتي.<ol><li>صوّر وش البطاقة.</li><li>راجع الاسم والرقم واكتب رايح فين.</li><li>اضغط «تسجيل الدخول الآن»، ولما يخرج اضغط «خرج».</li></ol></div>';
 
     var sec = ls.value, q = latin($("#logSearch").value.trim());
     var rows = state.day.filter(function(e){
@@ -422,18 +676,166 @@ tr:last-child td{border-bottom:0}
   $("#logDay").addEventListener("change", refresh);
   $("#logSector").addEventListener("change", render);
   $("#logSearch").addEventListener("input", render);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden && ME && !$("#viewGate").hidden) refresh(); });
 
-  var timer;
-  function start(){
-    $("#lockScreen").hidden = true; $("#app").hidden = false;
-    if(!$("#logDay").value) $("#logDay").value = dayKey(new Date());
-    refresh();
-    clearInterval(timer);
-    timer = setInterval(function(){ if(!document.hidden) refresh(); }, 30000);   // تحديث كل ٣٠ ثانية علشان البوابات التانية
+  // ================================================================ reports
+  var report = null;
+  function setRange(days){ var t = dayKey(new Date()); $("#rpTo").value = t; $("#rpFrom").value = addDays(t, -days); }
+  setRange(6);
+  $$(".quick button").forEach(function(b){ b.addEventListener("click", function(){ setRange(+b.getAttribute("data-range")); loadReport(); }); });
+  $("#rpGo").addEventListener("click", loadReport);
+  $("#rpGate").addEventListener("change", loadReport);
+
+  function loadReport(){
+    var s = $("#rpStatus"); s.className = "status"; s.innerHTML = '<span class="spin"></span><span>بيحسب التقرير…</span>';
+    run("getReport", TOKEN, $("#rpFrom").value, $("#rpTo").value, $("#rpGate").value).then(function(r){
+      report = r; s.textContent = "من " + r.from + " إلى " + r.to + (r.gate ? " · بوابة " + r.gate : " · كل البوابات");
+      drawReport(r);
+    }).catch(function(err){ s.className = "status err"; s.textContent = errMsg(err); });
   }
-  document.addEventListener("visibilitychange", function(){ if(!document.hidden) refresh(); });
 
-  if(PIN){ run("checkPin", PIN).then(start).catch(function(){ logout(); }); }
+  function kpi(label, value, sub){ return '<div class="kpi"><span>'+esc(label)+'</span><b class="num">'+value+'</b>'+(sub ? '<small>'+esc(sub)+'</small>' : "")+'</div>'; }
+  function niceMax(v){ if(v <= 4) return 4; var p = Math.pow(10, Math.floor(Math.log10(v))), s = [1,2,2.5,5,10]; for(var i=0;i<s.length;i++){ if(s[i]*p >= v) return s[i]*p; } return 10*p; }
+
+  // عمودي: data=[{label, tip, n}]
+  function colChart(el, data, every){
+    var max = niceMax(Math.max.apply(null, data.map(function(d){ return d.n; }).concat([1])));
+    var bars = data.map(function(d, i){
+      var h = d.n ? Math.max(2, d.n / max * 100) : 0;
+      return '<div class="col'+(d.n ? "" : " zero")+'" tabindex="0" data-tip="'+esc(d.tip + ": " + fmt(d.n))+'"><i style="height:'+h+'%"></i></div>';
+    }).join("");
+    var labels = data.map(function(d, i){ return "<span>"+(i % every === 0 ? esc(d.label) : "")+"</span>"; }).join("");
+    el.innerHTML = '<div class="col-chart"><div class="col-axis"><span>'+fmt(max)+'</span><span>'+fmt(max/2)+'</span><span>0</span></div>' +
+      '<div class="col-plot" role="img" aria-label="'+esc(data.map(function(d){ return d.tip+" "+d.n; }).join("، "))+'">'+bars+'</div><div class="col-labels">'+labels+'</div></div>';
+  }
+  function hbars(el, list){
+    if(!list || !list.length){ el.innerHTML = '<div class="empty">مفيش بيانات.</div>'; return; }
+    var max = Math.max.apply(null, list.map(function(d){ return d.n; }));
+    el.innerHTML = '<div class="hbars">' + list.map(function(d){
+      return '<div class="hbar"><span class="lbl" title="'+esc(d.k)+'">'+esc(d.k)+'</span><span class="track"><i style="width:'+(d.n/max*100)+'%"></i></span><b>'+fmt(d.n)+'</b></div>';
+    }).join("") + '</div>';
+  }
+  function table(el, heads, rows){
+    if(!rows.length){ el.innerHTML = '<div class="empty">مفيش.</div>'; return; }
+    el.innerHTML = '<div class="tablewrap"><table><thead><tr>'+heads.map(function(h){ return "<th>"+esc(h)+"</th>"; }).join("")+'</tr></thead><tbody>' +
+      rows.map(function(r){ return "<tr>"+r.map(function(c){ return "<td>"+c+"</td>"; }).join("")+"</tr>"; }).join("") + '</tbody></table></div>';
+  }
+
+  function drawReport(r){
+    var avg = r.avgStayMin ? Math.floor(r.avgStayMin/60) + ":" + pad(r.avgStayMin%60) : "—";
+    var perDay = r.byDay.length ? (r.total / r.byDay.length) : 0;
+    $("#kpis").innerHTML = kpi("إجمالي مرات الدخول", fmt(r.total), "متوسط " + perDay.toFixed(1) + " في اليوم") +
+      kpi("أشخاص مختلفين", fmt(r.unique), "") + kpi("جوه دلوقتي", fmt(r.insideNow), "") + kpi("متوسط مدة التواجد", avg, "ساعة:دقيقة");
+
+    var days = r.byDay.map(function(d){ var p = d.k.split("-"); return { label: +p[2] + "/" + +p[1], tip: d.k, n: d.n }; });
+    colChart($("#chDay"), days, Math.max(1, Math.ceil(days.length / 12)));
+    colChart($("#chHour"), r.byHour.map(function(n, h){ return { label: String(h), tip: "الساعة " + pad(h) + ":00", n: n }; }), 3);
+    hbars($("#chGate"), r.byGate); hbars($("#chReason"), r.reasons); hbars($("#chCompany"), r.companies);
+    hbars($("#chDest"), r.dests); hbars($("#chGov"), r.govs);
+    var tot = r.gender.m + r.gender.f;
+    $("#chGender").innerHTML = tot ? '<div class="split" role="img" aria-label="ذكر '+r.gender.m+'، أنثى '+r.gender.f+'"><i style="flex:'+r.gender.m+';background:var(--bar)"></i><i style="flex:'+r.gender.f+';background:var(--accent)"></i></div>' +
+      '<div class="legend"><span style="--c:var(--bar)">ذكر '+fmt(r.gender.m)+' ('+Math.round(r.gender.m/tot*100)+'٪)</span><span style="--c:var(--accent)">أنثى '+fmt(r.gender.f)+' ('+Math.round(r.gender.f/tot*100)+'٪)</span></div>' : '<div class="empty">مفيش بيانات.</div>';
+    table($("#tbOver"), ["الاسم","البوابة","دخل","بقاله"], r.overstay.map(function(o){ return [esc(o.name), esc(o.sector), '<span class="num">'+esc(o.day+" "+o.inTime)+'</span>', '<span class="pill off">'+o.hours+' ساعة</span>']; }));
+    table($("#tbFreq"), ["الاسم","الرقم القومي","مرات الدخول"], r.frequent.map(function(o){ return [esc(o.name), '<span class="num">'+esc(o.nid)+'</span>', '<b class="num">'+o.n+'</b>']; }));
+  }
+
+  // tooltip for columns
+  var tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; document.body.appendChild(tip);
+  function showTip(el){
+    var r = el.getBoundingClientRect(); tip.textContent = el.getAttribute("data-tip"); tip.hidden = false;
+    tip.style.left = (r.left + r.width/2 + window.scrollX) + "px"; tip.style.top = (r.top + window.scrollY + (r.height - (el.firstChild.offsetHeight||0)) - 4) + "px";
+  }
+  ["mouseover","focusin"].forEach(function(ev){ document.addEventListener(ev, function(e){ var c = e.target.closest && e.target.closest(".col[data-tip]"); if(c) showTip(c); }); });
+  ["mouseout","focusout"].forEach(function(ev){ document.addEventListener(ev, function(e){ if(e.target.closest && e.target.closest(".col[data-tip]")) tip.hidden = true; }); });
+  document.addEventListener("touchstart", function(e){ var c = e.target.closest && e.target.closest(".col[data-tip]"); if(c) showTip(c); else tip.hidden = true; }, { passive: true });
+
+  // ================================================================ admin
+  function loadAdmin(){
+    run("adminData", TOKEN).then(function(d){ admin = d; drawAdmin(); }).catch(function(err){ toast(errMsg(err)); });
+  }
+  function gatesLabel(g){ return g.indexOf("*") >= 0 ? "كل البوابات" : g.join("، "); }
+  function drawAdmin(){
+    $("#usersBody").innerHTML = admin.users.map(function(u){
+      return "<tr><td>"+esc(u.name)+"</td><td class=\"num\">"+esc(u.username)+"</td><td>"+esc(ROLE_LABEL[u.role])+"</td><td>"+esc(gatesLabel(u.gates))+"</td>" +
+        "<td>"+(u.active ? '<span class="pill in">شغال</span>' : '<span class="pill off">موقوف</span>')+"</td><td class=\"num\">"+esc(u.lastLogin || "—")+"</td>" +
+        '<td><button class="sm" type="button" data-edit="'+esc(u.username)+'">تعديل</button></td></tr>';
+    }).join("") || '<tr><td colspan="7" class="empty">مفيش مستخدمين.</td></tr>';
+    $("#gateList").innerHTML = admin.gates.map(function(g){
+      return '<span class="gate-item'+(g.active ? "" : " off")+'"><b>'+esc(g.name)+'</b><button class="sm" type="button" data-gate="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
+    }).join("");
+  }
+  $("#gateList").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-gate]"); if(!b) return;
+    busy(b, true);
+    run("saveGate", TOKEN, b.getAttribute("data-gate"), b.getAttribute("data-on") === "1").then(function(d){ admin = d; drawAdmin(); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); busy(b, false); });
+  });
+  $("#gateForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var n = $("#newGate").value.trim(); if(!n) return;
+    run("saveGate", TOKEN, n, true).then(function(d){ admin = d; drawAdmin(); $("#newGate").value = ""; toast("اتضافت بوابة " + n); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); });
+  });
+  function refreshGates(){ run("whoami", TOKEN).then(function(r){ ME = r.me; MYGATES = r.gates; fillGateSelects(); }).catch(function(){}); }
+
+  var editing = null;
+  function drawGateChoices(selected){
+    var role = $("#uRole").value, box = $("#uGates");
+    var active = admin.gates.filter(function(g){ return g.active || selected.indexOf(g.name) >= 0; }).map(function(g){ return g.name; });
+    if(role === "admin"){ $("#uGatesLbl").textContent = "البوابات"; box.innerHTML = '<span class="hint">الإدارة بتشوف كل البوابات.</span>'; return; }
+    if(role === "gate"){
+      $("#uGatesLbl").textContent = "البوابة (واحدة بس)";
+      box.innerHTML = active.map(function(g){ return '<label><input type="radio" name="ug" value="'+esc(g)+'"'+(selected.indexOf(g) >= 0 ? " checked" : "")+'> '+esc(g)+'</label>'; }).join("");
+    } else {
+      $("#uGatesLbl").textContent = "البوابات اللي يشوفها";
+      var all = selected.indexOf("*") >= 0;
+      box.innerHTML = '<label><input type="checkbox" value="*" id="ugAll"'+(all ? " checked" : "")+'> <b>كل البوابات</b></label>' +
+        active.map(function(g){ return '<label><input type="checkbox" name="ug" value="'+esc(g)+'"'+(!all && selected.indexOf(g) >= 0 ? " checked" : "")+(all ? " disabled" : "")+'> '+esc(g)+'</label>'; }).join("");
+      $("#ugAll").addEventListener("change", function(e){ $$('#uGates input[name="ug"]').forEach(function(c){ c.disabled = e.target.checked; if(e.target.checked) c.checked = false; }); });
+    }
+  }
+  function openUser(u){
+    editing = u || null;
+    $("#userDlgTitle").textContent = u ? "تعديل: " + u.name : "مستخدم جديد";
+    $("#uName").value = u ? u.name : "";
+    $("#uUser").value = u ? u.username : ""; $("#uUser").readOnly = !!u;
+    $("#uRole").value = u ? u.role : "gate";
+    $("#uPass").value = ""; $("#uPass").placeholder = u ? "سيبها فاضية لو مش هتغيّرها" : "٦ حروف أو أرقام على الأقل";
+    $("#uPassLbl").textContent = u ? "كلمة سر جديدة (اختياري)" : "كلمة السر";
+    $("#uActive").checked = u ? u.active : true; $("#uActiveRow").hidden = !u;
+    $("#uMsg").textContent = "";
+    drawGateChoices(u ? u.gates : []);
+    $("#userDlg").showModal();
+  }
+  $("#addUserBtn").addEventListener("click", function(){ openUser(null); });
+  $("#usersBody").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-edit]"); if(!b) return;
+    openUser(admin.users.filter(function(u){ return u.username === b.getAttribute("data-edit"); })[0]);
+  });
+  $("#uRole").addEventListener("change", function(){ drawGateChoices(editing && editing.role === $("#uRole").value ? editing.gates : []); });
+  $("#userForm").addEventListener("submit", function(e){
+    if(e.submitter && e.submitter.value === "cancel") return;
+    e.preventDefault();
+    var role = $("#uRole").value, gates;
+    if(role === "admin") gates = ["*"];
+    else if($("#ugAll") && $("#ugAll").checked) gates = ["*"];
+    else gates = $$('#uGates input[name="ug"]:checked').map(function(c){ return c.value; });
+    var d = { isNew: !editing, username: $("#uUser").value.trim().toLowerCase(), name: $("#uName").value.trim(), role: role, gates: gates, password: $("#uPass").value, active: editing ? $("#uActive").checked : true };
+    var btn = $("#uSave"); busy(btn, true, "بيحفظ…"); $("#uMsg").textContent = "";
+    run("saveUser", TOKEN, d).then(function(res){
+      admin = res; drawAdmin(); $("#userDlg").close();
+      toast(editing ? "اتحفظ التعديل." : "اتعمل المستخدم " + d.username + ". ابعتله اسم المستخدم وكلمة السر.");
+      if(editing && editing.username === ME.username) refreshGates();
+    }).catch(function(err){ $("#uMsg").textContent = errMsg(err); })
+    .then(function(){ busy(btn, false, "حفظ"); });
+  });
+
+  // ================================================================ boot
+  if(TOKEN){
+    run("whoami", TOKEN).then(signedIn).catch(function(){ logout(); });
+  } else {
+    run("needsSetup").then(function(n){ showLock(n ? "setup" : "login"); }).catch(function(err){ showLock("login"); $("#lgMsg").textContent = errMsg(err); });
+  }
 })();
 </script>
 </body>
