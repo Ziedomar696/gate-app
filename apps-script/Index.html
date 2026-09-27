@@ -256,8 +256,7 @@ dialog form{padding:16px;display:grid;gap:12px}
 
         <div class="fields">
           <label class="f wide">الاسم بالكامل<input id="name"></label>
-          <label class="f">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
-          <label class="f">رقم الموبايل<input id="phone" inputmode="tel" class="num" style="text-align:right"></label>
+          <label class="f wide">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
           <div class="derived wide" id="derived"></div>
           <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
           <label class="f">رايح فين (وحدة / موقع)<input id="dest" placeholder="مثال: فيلا 42"></label>
@@ -283,8 +282,6 @@ dialog form{padding:16px;display:grid;gap:12px}
             <details class="raw" id="carRawBox" hidden><summary>النص اللي اتقرا من الرخصة</summary><pre id="carRawText"></pre></details>
             <div class="fields">
               <label class="f wide">رقم اللوحة (حروف وأرقام)<input id="plate" placeholder="م س ع 1234" autocomplete="off"></label>
-              <label class="f">الماركة / الموديل<input id="vehicle" placeholder="مثال: هيونداي النترا"></label>
-              <label class="f">اللون<input id="vehicleColor" placeholder="مثال: فضي"></label>
             </div>
           </div>
         </section>
@@ -346,7 +343,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <section class="card"><h3>أكتر الأماكن اللي راحوا لها</h3><div id="chDest"></div></section>
       <section class="card"><h3>المحافظات</h3><div id="chGov"></div></section>
       <section class="card"><h3>النوع</h3><div id="chGender"></div></section>
-      <section class="card full"><h3>المركبات حسب الماركة</h3><div id="chVehicle"></div></section>
+      
       <section class="card full"><h3>جوه بقالهم أكتر من <span id="rpLateH">8</span> ساعات</h3><div id="tbOver"></div></section>
       <section class="card full"><h3>أكتر ناس اتكرر دخولهم</h3><div id="tbFreq"></div></section>
     </div>
@@ -427,16 +424,13 @@ dialog form{padding:16px;display:grid;gap:12px}
     <h2 id="eTitle">تعديل البيانات</h2>
     <div class="fields">
       <label class="f wide">الاسم بالكامل<input id="eName"></label>
-      <label class="f">الرقم القومي<input id="eNid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
-      <label class="f">رقم الموبايل<input id="ePhone" inputmode="tel" class="num" style="text-align:right"></label>
+      <label class="f wide">الرقم القومي<input id="eNid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
       <label class="f wide">العنوان<input id="eAddress"></label>
       <label class="f">رايح فين<input id="eDest"></label>
       <label class="f">سبب الدخول<select id="eReason"></select><input id="eReasonOther" placeholder="اكتب السبب" hidden></label>
       <label class="f">الشركة / صاحب العمل<input id="eCompany"></label>
       <label class="f">ملاحظات<input id="eNotes"></label>
       <label class="f wide">رقم اللوحة (سيبه فاضي لو مفيش مركبة)<input id="ePlate" placeholder="م س ع 1234" autocomplete="off"></label>
-      <label class="f">الماركة / الموديل<input id="eVehicle"></label>
-      <label class="f">اللون<input id="eVehicleColor"></label>
     </div>
     <p class="edited" id="eInfo"></p>
     <div class="status err" id="eMsg"></div>
@@ -695,8 +689,6 @@ dialog form{padding:16px;display:grid;gap:12px}
       return run("ocrCar", TOKEN, dataUrl.split(",")[1], "image/jpeg");
     }).then(function(r){
       if(r.plate) $("#plate").value = r.plate;
-      if(r.vehicle) $("#vehicle").value = r.vehicle;
-      if(r.color) $("#vehicleColor").value = r.color;
       if(r.raw){ $("#carRawText").textContent = r.raw; $("#carRawBox").hidden = false; }
       if(r.plate) carStatus("اتقرت. راجع رقم اللوحة مع العربية نفسها.", "ok");
       else carStatus("ماقدرتش ألاقي رقم اللوحة. اكتبه بإيدك.", "err");
@@ -704,14 +696,14 @@ dialog form{padding:16px;display:grid;gap:12px}
     .then(function(){ $("#carScanBtn").classList.remove("busy"); });
   });
   function clearCar(){
-    ["plate","vehicle","vehicleColor"].forEach(function(id){ $("#"+id).value = ""; });
+    $("#plate").value = "";
     var th = $("#carThumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#carRawBox").hidden = true; $("#hasCar").checked = false; $("#carFields").hidden = true;
     carStatus("أو اكتب رقم اللوحة بإيدك.");
   }
 
   function clearForm(){
-    ["name","nid","phone","address","dest","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
+    ["name","nid","address","dest","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
     fillReasons($("#reason"), $("#reasonOther"), "");
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
@@ -725,13 +717,13 @@ dialog form{padding:16px;display:grid;gap:12px}
     e.preventDefault();
     var entry = {
       sector: $("#sector").value,
-      name: $("#name").value.trim(), nid: cleanNid($("#nid").value), phone: latin($("#phone").value.trim()),
+      name: $("#name").value.trim(), nid: cleanNid($("#nid").value),
       address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: getReason($("#reason"), $("#reasonOther")),
       company: $("#company").value.trim(), notes: $("#notes").value.trim(),
-      plate: "", vehicle: "", vehicleColor: ""
+      plate: ""
     };
     if($("#hasCar").checked){
-      entry.plate = plateNorm($("#plate").value); entry.vehicle = $("#vehicle").value.trim(); entry.vehicleColor = $("#vehicleColor").value.trim();
+      entry.plate = plateNorm($("#plate").value);
       if(!/\d/.test(entry.plate) || !/[ء-ي]/.test(entry.plate)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)، أو شيل علامة «معاه مركبة»."); $("#plate").focus(); return; }
     }
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
@@ -806,7 +798,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       return "<tr><td>" + (e.outMs ? '<span class="pill done">خرج</span>' : '<span class="pill in">جوه</span>') + "</td>" +
         "<td>"+esc(e.name)+"</td><td class=\"num\">"+esc(e.nid)+"</td><td>"+esc(e.sector)+"</td><td>"+esc(e.dest)+"</td>" +
         "<td>"+esc(e.reason)+"</td><td>"+esc(e.company)+"</td>" +
-        "<td>"+(e.plate ? '<span class="plate">'+esc(e.plate)+'</span>' + (e.vehicle ? ' <span class="hint">'+esc(e.vehicle)+'</span>' : "") : "—")+"</td>" +
+        "<td>"+(e.plate ? '<span class="plate">'+esc(e.plate)+'</span>' : "—")+"</td>" +
         "<td class=\"num\">"+esc(e.inTime)+"</td>" +
         "<td class=\"num\">"+(e.outMs ? esc(e.outTime) : "—")+"</td><td class=\"num\">"+(e.outMs ? esc(e.duration) : "—")+"</td>" +
         "<td>"+esc(e.guardIn)+(e.guardOut && e.guardOut !== e.guardIn ? " / "+esc(e.guardOut) : "")+"</td>" +
@@ -828,7 +820,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var x = findEntry(b.getAttribute("data-edit-entry")); if(!x) return;
     editId = x.id;
     $("#eTitle").textContent = "تعديل: " + x.name;
-    var map = { eName:"name", eNid:"nid", ePhone:"phone", eAddress:"address", eDest:"dest", eCompany:"company", eNotes:"notes", ePlate:"plate", eVehicle:"vehicle", eVehicleColor:"vehicleColor" };
+    var map = { eName:"name", eNid:"nid", eAddress:"address", eDest:"dest", eCompany:"company", eNotes:"notes", ePlate:"plate" };
     Object.keys(map).forEach(function(k){ $("#"+k).value = x[map[k]] || ""; });
     fillReasons($("#eReason"), $("#eReasonOther"), x.reason);
     $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
@@ -841,10 +833,10 @@ dialog form{padding:16px;display:grid;gap:12px}
   $("#entryEditForm").addEventListener("submit", function(e){
     if(e.submitter && e.submitter.value === "cancel") return;
     e.preventDefault();
-    var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value), phone: latin($("#ePhone").value.trim()),
+    var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value),
       address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: getReason($("#eReason"), $("#eReasonOther")),
       company: $("#eCompany").value.trim(), notes: $("#eNotes").value.trim(),
-      plate: plateNorm($("#ePlate").value), vehicle: $("#eVehicle").value.trim(), vehicleColor: $("#eVehicleColor").value.trim() };
+      plate: plateNorm($("#ePlate").value) };
     if(!d.name){ $("#eMsg").textContent = "اكتب الاسم."; return; }
     if(!parseNid(d.nid)){ $("#eMsg").textContent = "الرقم القومي لازم يكون ١٤ رقم صحيح."; return; }
     var btn = $("#eSave"); busy(btn, true, "بيحفظ…");
@@ -910,7 +902,6 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#kpis").innerHTML = kpi("إجمالي مرات الدخول", fmt(r.total), "متوسط " + perDay.toFixed(1) + " في اليوم") +
       kpi("أشخاص مختلفين", fmt(r.unique), "") + kpi("جوه دلوقتي", fmt(r.insideNow), "") + kpi("متوسط مدة التواجد", avg, "ساعة:دقيقة") +
       kpi("دخلوا بمركبة", fmt(r.withVehicle || 0), r.total ? Math.round((r.withVehicle||0) / r.total * 100) + "٪ من الداخلين" : "");
-    hbars($("#chVehicle"), r.vehicles);
 
     var days = r.byDay.map(function(d){ var p = d.k.split("-"); return { label: +p[2] + "/" + +p[1], tip: d.k, n: d.n }; });
     colChart($("#chDay"), days, Math.max(1, Math.ceil(days.length / 12)));

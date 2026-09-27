@@ -521,10 +521,10 @@ function updateEntry(token, id, e) {
     const set = function (h, v, text) { cur[COL[h]] = text && v !== '' ? "'" + v : v; };
     set('الاسم', name); set('الرقم القومي', nid, true); set('تاريخ الميلاد', p.dob, true);
     set('النوع', p.gender); set('المحافظة', p.gov);
-    set('العنوان', clean_(e.address)); set('رقم الموبايل', digits_(e.phone), true);
+    set('العنوان', clean_(e.address));
     set('رايح فين', clean_(e.dest)); set('سبب الدخول', clean_(e.reason));
     set('الشركة / صاحب العمل', clean_(e.company)); set('ملاحظات', clean_(e.notes));
-    set('رقم اللوحة', plate); set('المركبة', plate ? clean_(e.vehicle) : ''); set('لون المركبة', plate ? clean_(e.vehicleColor) : '');
+    set('رقم اللوحة', plate);
     set('آخر تعديل', u.username + ' ' + stamp_(new Date()));
     // النصوص اللي كانت محفوظة كنص ترجع بعلامة ' علشان الشيت ما يحولهاش
     ['التاريخ', 'وقت الدخول', 'وقت الخروج', 'مدة التواجد (س:د)'].forEach(function (h) {
@@ -576,12 +576,12 @@ function checkOverstays() {
     if (to.length) {
       const rowsHtml = fresh.map(function (r) {
         return '<tr><td>' + esc_(r.name) + '</td><td>' + esc_(r.sector) + '</td><td>' + esc_(r.day + ' ' + r.inTime) + '</td><td><b>' + r.hours + ' ساعة</b></td><td>' +
-          esc_(r.company) + '</td><td>' + esc_(r.phone) + '</td><td>' + esc_(r.plate) + '</td><td>' + esc_(r.guardIn) + '</td></tr>';
+          esc_(r.company) + '</td><td>' + esc_(r.plate) + '</td><td>' + esc_(r.guardIn) + '</td></tr>';
       }).join('');
       const body = '<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif">' +
         '<h3 style="color:#B3261E">⚠️ ' + fresh.length + ' جوه الكمباوند بقالهم أكتر من ' + ALERT_HOURS + ' ساعات</h3>' +
         '<table border="1" cellpadding="6" style="border-collapse:collapse;font-size:14px"><tr style="background:#16414D;color:#fff">' +
-        '<th>الاسم</th><th>البوابة</th><th>دخل</th><th>بقاله</th><th>الشركة</th><th>الموبايل</th><th>اللوحة</th><th>فرد الأمن</th></tr>' + rowsHtml + '</table>' +
+        '<th>الاسم</th><th>البوابة</th><th>دخل</th><th>بقاله</th><th>الشركة</th><th>اللوحة</th><th>فرد الأمن</th></tr>' + rowsHtml + '</table>' +
         '<p>التنبيه ده بيتبعت مرة واحدة لكل شخص. افتح التطبيق وسجّل خروجه أو تابع مع البوابة.</p></div>';
       MailApp.sendEmail({
         to: to.join(','),
