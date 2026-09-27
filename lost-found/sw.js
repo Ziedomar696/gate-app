@@ -1,6 +1,6 @@
 // Service worker: بيخزن شاشة التطبيق علشان تفتح بسرعة ويظهر "مفيش إنترنت" بدل صفحة خطأ.
 // البيانات نفسها دايماً بتروح وتيجي من Google مباشرة (مش بتتخزن هنا).
-const CACHE = "gate-shell-v2";
+const CACHE = "lostfound-shell-v1";
 const SHELL = [
   "./",
   "./index.html",
@@ -19,7 +19,7 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("gate-shell-") && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("lostfound-") && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -27,7 +27,6 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return; // Google requests: untouched
-  if (url.pathname.includes("/lost-found/")) return;                        // the lost & found app has its own worker
   // network first (so updates show up), cache as fallback when offline
   e.respondWith(
     fetch(e.request)

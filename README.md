@@ -69,3 +69,15 @@ Go to **pwabuilder.com** → paste your hosted link → **Package for stores →
 - **iPhone PIN:** Safari sometimes forgets the saved PIN inside installed apps. If it does, the guard just types it again.
 - **Keep "Who has access: Anyone".** If it's set to require a Google login, the page can't open inside the app.
 - **Anyone with the link can see the PIN screen**, so the PIN is your protection. Pick one that isn't easy to guess and change it if a guard leaves.
+
+---
+
+# Lost & Found app (مفقودات مراسي)
+
+A separate app with its own link and icon: **https://ziedomar696.github.io/gate-app/lost-found/**
+
+- `lost-found/apps-script/`: paste into a **new** Apps Script project (Code.gs, Index.html, appsscript.json).
+  Change `SETUP_CODE` on line 8, run `setup`, then Deploy → Web app (Execute as: Me, Who has access: Anyone).
+- `lost-found/index.html`: set `APP_URL` to that project's `/exec` link.
+- Data goes to a new Google Sheet **مفقودات مراسي**; photos go to two private Drive folders
+  (item photos, and claimants' ID photos, which only users with the handover permissions can see).
