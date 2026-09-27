@@ -516,7 +516,7 @@ function itemFields_(d) {
   if (!place) throw new Error('اختار المكان.');
   if (!date || !time) throw new Error('اكتب تاريخ ووقت العثور.');
   return { category: category, place: place, date: date, time: time, description: clean_(d.description, 1000),
-    finderName: clean_(d.finderName), finderPhone: digits_(d.finderPhone), finderType: clean_(d.finderType), supervisor: clean_(d.supervisor) };
+    finderName: clean_(d.finderName), finderPhone: digits_(d.finderPhone), finderType: clean_(d.finderType), supervisor: clean_(d.supervisor), toOffice: d.toOffice === true };
 }
 
 function createItem(token, d, photo, thumb) {
@@ -527,12 +527,14 @@ function createItem(token, d, photo, thumb) {
     const code = nextCode_();
     const photoId = photo ? savePhoto_(photo, 'PHOTOS_FOLDER', 'مفقودات مراسي - صور المفقودات', code) : '';
     const now = stamp_(new Date());
-    const status = f.supervisor ? 'office' : 'found';
+    // الحاجة بتبقى "في مكتب الأمن" بس لما يتعلّم إنها اتسلّمت، واسم المشرف لوحده مش كفاية
+    if (f.toOffice && !f.supervisor) throw new Error('اكتب اسم مشرف الأمن اللي استلمها.');
+    const status = f.toOffice ? 'office' : 'found';
     const row = new Array(ITEM_HEADERS.length).fill('');
     row[IC['الكود']] = code; row[IC['النوع']] = f.category; row[IC['الوصف']] = f.description; row[IC['المكان']] = f.place;
     row[IC['تاريخ العثور']] = "'" + f.date; row[IC['وقت العثور']] = "'" + f.time;
     row[IC['اسم اللي لقاها']] = f.finderName; row[IC['موبايل اللي لقاها']] = f.finderPhone ? "'" + f.finderPhone : ''; row[IC['تبعيته']] = f.finderType;
-    row[IC['مشرف الأمن المستلم']] = f.supervisor; row[IC['وقت التسليم للأمن']] = f.supervisor ? now : '';
+    row[IC['مشرف الأمن المستلم']] = f.supervisor; row[IC['وقت التسليم للأمن']] = f.toOffice ? now : '';
     row[IC['الحالة']] = STATUSES[status]; row[IC['سجّلها']] = u.name + ' (' + u.username + ')'; row[IC['وقت التسجيل']] = now;
     row[IC['صورة (Drive ID)']] = photoId; row[IC['مصغّرة']] = /^data:image\/jpeg;base64,/.test(thumb || '') && thumb.length < 45000 ? thumb : '';
     itemsSheet_().appendRow(row);
@@ -553,6 +555,12 @@ function updateItem(token, code, d, photo, thumb) {
     set('النوع', f.category); set('الوصف', f.description); set('المكان', f.place); set('تاريخ العثور', "'" + f.date); set('وقت العثور', "'" + f.time);
     set('اسم اللي لقاها', f.finderName); set('موبايل اللي لقاها', f.finderPhone ? "'" + f.finderPhone : ''); set('تبعيته', f.finderType);
     if (f.supervisor) set('مشرف الأمن المستلم', f.supervisor);
+    if (f.toOffice && x.status === 'found') {
+      if (!f.supervisor && !x.supervisor) throw new Error('اكتب اسم مشرف الأمن اللي استلمها.');
+      set('وقت التسليم للأمن', stamp_(new Date()));
+      set('الحالة', STATUSES.office);
+      history_(code, 'found', 'office', u);
+    }
     if (photo) {
       set('صورة (Drive ID)', savePhoto_(photo, 'PHOTOS_FOLDER', 'مفقودات مراسي - صور المفقودات', code));
       set('مصغّرة', /^data:image\/jpeg;base64,/.test(thumb || '') && thumb.length < 45000 ? thumb : '');

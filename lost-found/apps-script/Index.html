@@ -328,7 +328,11 @@ dialog form,dialog .body{padding:16px;display:grid;gap:12px}
       <label class="f">اسم اللي لقاها<input id="iFinder"></label>
       <label class="f">موبايل اللي لقاها<input id="iFinderPhone" inputmode="tel" class="num" style="text-align:right"></label>
       <label class="f wide">تبعيته<input id="iFinderType" placeholder="مثال: مالك / زيارة / شركة / موظف"></label>
-      <label class="f wide">مشرف الأمن اللي استلمها<input id="iSup" placeholder="لو كتبته، الحاجة بتتسجل إنها في مكتب الأمن"></label>
+      <label class="f wide">مشرف الأمن اللي استلمها<input id="iSup" placeholder="اسم المشرف (اختياري)"></label>
+      <label class="wide" id="iOfficeRow" style="display:flex;gap:8px;align-items:center;font-weight:600;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2)">
+        <input type="checkbox" id="iOffice"> اتسلّمت لمكتب الأمن
+        <span class="hint" style="font-weight:400">(الحالة تبقى «في مكتب الأمن»)</span>
+      </label>
     </div>
     <div class="status err" id="iMsg"></div>
     <div class="actions">
@@ -572,7 +576,7 @@ dialog form,dialog .body{padding:16px;display:grid;gap:12px}
     $("#iCat").value = x ? x.category : ""; $("#iPlace").value = x ? x.place : "";
     $("#iDesc").value = x ? x.description : ""; $("#iDate").value = x ? x.date : dayKey(now); $("#iTime").value = x ? x.time : pad(now.getHours())+":"+pad(now.getMinutes());
     $("#iFinder").value = x ? x.finderName : ""; $("#iFinderPhone").value = x ? x.finderPhone : ""; $("#iFinderType").value = x ? x.finderType : ""; $("#iSup").value = x ? x.supervisor : "";
-    $("#iSup").parentNode.hidden = !!(x && x.status !== "found");
+    $("#iOffice").checked = false; $("#iOfficeRow").hidden = !!(x && x.status !== "found");
     var pv = $("#photoPv"); pv.style.backgroundImage = x && x.thumb ? "url('"+x.thumb+"')" : ""; pv.textContent = x && x.thumb ? "" : "مفيش صورة";
     $("#iMsg").textContent = ""; $("#itemDlg").showModal();
   }
@@ -586,14 +590,15 @@ dialog form,dialog .body{padding:16px;display:grid;gap:12px}
     if(e.submitter && e.submitter.value === "cancel") return;
     e.preventDefault();
     var d = { category: $("#iCat").value, place: $("#iPlace").value, description: $("#iDesc").value.trim(), date: $("#iDate").value, time: $("#iTime").value,
-      finderName: $("#iFinder").value.trim(), finderPhone: latin($("#iFinderPhone").value.trim()), finderType: $("#iFinderType").value.trim(), supervisor: $("#iSup").value.trim() };
+      finderName: $("#iFinder").value.trim(), finderPhone: latin($("#iFinderPhone").value.trim()), finderType: $("#iFinderType").value.trim(), supervisor: $("#iSup").value.trim(), toOffice: $("#iOffice").checked };
+    if(d.toOffice && !d.supervisor){ $("#iMsg").textContent = "اكتب اسم مشرف الأمن اللي استلمها."; $("#iSup").focus(); return; }
     if(!d.category){ $("#iMsg").textContent = "اختار نوع الحاجة."; return; }
     if(!d.place){ $("#iMsg").textContent = "اختار المكان."; return; }
     var btn = $("#iSave"); busy(btn, true, "بيحفظ…");
     var p = editCode ? run("updateItem", TOKEN, editCode, d, photoData, thumbData) : run("createItem", TOKEN, d, photoData, thumbData);
     p.then(function(r){
       $("#itemDlg").close();
-      if(editCode){ toast("اتحفظ التعديل."); showItem(r); } else toast("اتسجل المفقود. الكود: " + r.code);
+      if(editCode){ toast("اتحفظ التعديل."); showItem(r); if(!$("#viewDlg").open) $("#viewDlg").showModal(); } else toast("اتسجل المفقود. الكود: " + r.code);
       loadItems(true);
     }).catch(function(err){ $("#iMsg").textContent = errMsg(err); }).then(function(){ busy(btn, false, "حفظ"); });
   });
