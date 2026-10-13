@@ -20,7 +20,7 @@ const DEFAULT_REASONS = ['أعمال صيانة', 'تشطيبات', 'نظافة'
   'حمامات سباحة', 'مختصين الزراعة التابعين للوحدات', 'السواقين التابعين للوحدات', 'المفوضين التابعين للوحدات', 'الدليفري'];
 
 const HEADERS = [
-  'الاسم', 'الرقم القومي', 'تاريخ الميلاد', 'النوع', 'المحافظة', 'العنوان', 'رقم الموبايل',
+  'الاسم', 'الرقم القومي', 'تاريخ الميلاد', 'النوع', 'المحافظة', 'العنوان',
   'القطاع', 'رايح فين', 'سبب الدخول', 'الشركة / صاحب العمل', 'ملاحظات',
   'التاريخ', 'وقت الدخول', 'وقت الخروج', 'مدة التواجد (س:د)',
   'فرد الأمن (دخول)', 'فرد الأمن (خروج)',
@@ -30,8 +30,12 @@ const HEADERS = [
   'آخر تعديل', 'محذوف',
   'تنبيه التأخير'
 ];
+// ترتيب الأعمدة القديم (قبل ما عمود الموبايل يتشال) — بيستخدمه إصلاح الشيت بس.
+const OLD_HEADERS = HEADERS.slice(0, 6).concat(['رقم الموبايل'], HEADERS.slice(6));
+// مكان كل عمود بيتقري من أسماء العناوين في الشيت نفسه، فلو عمود اتمسح أو اتنقل البرنامج مش بيتلخبط.
 const COL = {};
 HEADERS.forEach(function (h, i) { COL[h] = i; });
+let LOG_W = HEADERS.length;
 const U_HEADERS = ['اسم المستخدم', 'الاسم', 'الدور', 'البوابات', 'نشط', 'آخر دخول', 'تاريخ الإنشاء', 'salt', 'hash', 'ver', 'الإيميل'];
 const G_HEADERS = ['البوابة', 'نشطة'];
 
@@ -40,6 +44,7 @@ const GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسع�
 // ================================================================ web app
 
 function doGet() {
+  autoRepair_();
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('سجل بوابة الأفراد')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
@@ -50,6 +55,7 @@ function doGet() {
 function setup() {
   const ss = ss_();
   logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_();
+  repairColumns();
   installAlertTrigger_();
   ss.getSheets().forEach(function (s) {
     if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
@@ -86,21 +92,90 @@ function ensureSheet_(name, headers, init) {
     if (init) init(sh);
   } else {
     const w = sh.getLastColumn();
-    if (w < headers.length) style(sh.getRange(1, w + 1, 1, headers.length - w).setValues([headers.slice(w)]));
+    const have = w ? sh.getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x).trim(); }) : [];
+    const missing = headers.filter(function (h) { return have.indexOf(h) < 0; });
+    if (missing.length) style(sh.getRange(1, w + 1, 1, missing.length).setValues([missing]));
   }
   _sheets[name] = sh;
   return sh;
 }
 
 function logSheet_() {
-  return ensureSheet_(LOG_SHEET, HEADERS, function (sh) {
+  const fresh = !_sheets[LOG_SHEET];
+  const sh = ensureSheet_(LOG_SHEET, HEADERS, initLog_);
+  if (fresh) mapColumns_(sh);
+  return sh;
+}
+/** بيقرا صف العناوين ويحدد مكان كل عمود باسمه. */
+function mapColumns_(sh) {
+  const w = sh.getLastColumn();
+  const head = sh.getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x).trim(); });
+  HEADERS.forEach(function (h) { const i = head.indexOf(h); if (i >= 0) COL[h] = i; });
+  LOG_W = w;
+}
+
+/**
+ * إصلاح الشيت بعد مسح عمود الموبايل يدوي:
+ * - السطور اللي اتسجلت بعد المسح بالترتيب القديم بترجع لأماكنها الصح.
+ * - الأعمدة المتكررة (زي "تنبيه التأخير") بتتدمج وبيتمسح التكرار.
+ * بتشتغل لوحدها مرة واحدة، وممكن تشغلها من المحرر في أي وقت.
+ */
+function repairColumns() {
+  const sh = logSheet_();
+  const w = sh.getLastColumn(), last = sh.getLastRow();
+  const head = sh.getRange(1, 1, 1, w).getValues()[0].map(function (x) { return String(x).trim(); });
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  let fixedRows = 0, dropped = 0;
+  if (last >= 2) {
+    const data = sh.getRange(2, 1, last - 1, w).getValues();
+    const oldId = OLD_HEADERS.indexOf('ID');
+    data.forEach(function (r, i) {
+      if (uuid.test(String(r[COL['ID']]))) return;
+      if (!(oldId < r.length && uuid.test(String(r[oldId])))) return;
+      // السطر ده متسجّل بالترتيب القديم: نرجّع كل قيمة تحت عنوانها
+      const out = new Array(w).fill('');
+      OLD_HEADERS.forEach(function (h, j) { if (h in COL && j < r.length) out[COL[h]] = r[j]; });
+      data[i] = out; fixedRows++;
+    });
+    // دمج الأعمدة المتكررة في أول عمود بنفس الاسم
+    head.forEach(function (h, j) {
+      const first = head.indexOf(h);
+      if (!h || first === j) return;
+      data.forEach(function (r) { if ((r[first] === '' || r[first] == null) && r[j] !== '' && r[j] != null) r[first] = r[j]; r[j] = ''; });
+    });
+    if (fixedRows || head.some(function (h, j) { return h && head.indexOf(h) !== j; })) {
+      // نحافظ على النصوص (التواريخ والأرقام) زي ما هي
+      sh.getRange(2, 1, data.length, w).setNumberFormat('@');
+      sh.getRange(2, COL['inMs'] + 1, data.length, 1).setNumberFormat('0');
+      sh.getRange(2, COL['outMs'] + 1, data.length, 1).setNumberFormat('0');
+      sh.getRange(2, 1, data.length, w).setValues(data.map(function (r) { return r.map(function (x, j) {
+        if (x instanceof Date) return Utilities.formatDate(x, TZ, j === COL['التاريخ'] || j === COL['تاريخ الميلاد'] ? 'yyyy-MM-dd' : 'HH:mm');
+        return x;
+      }); }));
+    }
+  }
+  for (let j = head.length - 1; j >= 0; j--) if (head[j] && head.indexOf(head[j]) !== j) { sh.deleteColumn(j + 1); dropped++; }
+  delete _sheets[LOG_SHEET]; logSheet_();
+  PropertiesService.getScriptProperties().setProperty('COLS_REPAIRED', '1');
+  Logger.log('اتصلح: ' + fixedRows + ' سطر رجع مكانه، و' + dropped + ' عمود متكرر اتشال.');
+  return { rows: fixedRows, cols: dropped };
+}
+function autoRepair_() {
+  if (PropertiesService.getScriptProperties().getProperty('COLS_REPAIRED')) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return;
+  try { repairColumns(); } catch (e) {} finally { lock.releaseLock(); }
+}
+
+function initLog_(sh) {
+  (function () {
     sh.getRange(1, 1, sh.getMaxRows(), COL['فرد الأمن (خروج)'] + 1).setNumberFormat('@');
     sh.getRange(1, COL['inMs'] + 1, sh.getMaxRows(), 2).setNumberFormat('0');
     sh.hideColumns(COL['ID'] + 1, 3);
     sh.setColumnWidth(COL['الاسم'] + 1, 220);
     sh.setColumnWidth(COL['الرقم القومي'] + 1, 150);
     sh.setColumnWidth(COL['العنوان'] + 1, 260);
-  });
+  })();
 }
 
 function usersSheet_() {
@@ -134,8 +209,9 @@ function reasons_() {
 function activeReasons_() { return reasons_().filter(function (r) { return r.active; }).map(function (r) { return r.name; }); }
 
 function logSectors_() {
-  const sh = ss_().getSheetByName(LOG_SHEET);
-  if (!sh || sh.getLastRow() < 2) return [];
+  if (!ss_().getSheetByName(LOG_SHEET)) return [];
+  const sh = logSheet_();
+  if (sh.getLastRow() < 2) return [];
   return unique_(sh.getRange(2, COL['القطاع'] + 1, sh.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); }));
 }
 
@@ -425,14 +501,13 @@ function saveEntry(token, e) {
     const inside = rows_(3000).filter(function (r) { return !r.outMs && r.nid === nid; })[0];
     if (inside) throw new Error('الشخص ده متسجل جوه من ' + inside.inTime + ' (' + inside.sector + ') ولسه ماخرجش.');
     const now = new Date();
-    const row = new Array(HEADERS.length).fill('');
+    const row = new Array(Math.max(LOG_W, logSheet_().getLastColumn())).fill('');
     row[COL['الاسم']] = name;
     row[COL['الرقم القومي']] = nid;
     row[COL['تاريخ الميلاد']] = p.dob;
     row[COL['النوع']] = p.gender;
     row[COL['المحافظة']] = p.gov;
     row[COL['العنوان']] = clean_(e.address);
-    row[COL['رقم الموبايل']] = digits_(e.phone);
     row[COL['القطاع']] = sector;
     row[COL['رايح فين']] = clean_(e.dest);
     row[COL['سبب الدخول']] = clean_(e.reason);
@@ -447,7 +522,7 @@ function saveEntry(token, e) {
     row[COL['رقم اللوحة']] = plateNorm_(e.plate);
     row[COL['المركبة']] = clean_(e.vehicle);
     row[COL['لون المركبة']] = clean_(e.vehicleColor);
-    ['الرقم القومي', 'رقم الموبايل', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
+    ['الرقم القومي', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
       if (row[COL[h]] !== '') row[COL[h]] = "'" + row[COL[h]];
     });
     logSheet_().appendRow(row);
@@ -510,7 +585,7 @@ function updateEntry(token, id, e) {
     const sh = logSheet_();
     const r = rowOf_(sh, id);
     if (!r) throw new Error('السطر مش موجود.');
-    const cur = sh.getRange(r, 1, 1, HEADERS.length).getValues()[0];
+    const cur = sh.getRange(r, 1, 1, LOG_W).getValues()[0];
     if (String(cur[COL['محذوف']] || '').trim()) throw new Error('الحركة دي اتمسحت.');
     if (!canSee_(u, String(cur[COL['القطاع']]))) throw new Error('الحركة دي على بوابة ' + cur[COL['القطاع']] + '، وحسابك مش عليها.');
     // مينفعش نفس الرقم القومي يبقى جوه مرتين
@@ -532,7 +607,7 @@ function updateEntry(token, id, e) {
       if (v instanceof Date) cur[COL[h]] = "'" + Utilities.formatDate(v, TZ, h === 'التاريخ' ? 'yyyy-MM-dd' : 'HH:mm');
       else if (v !== '' && v != null) cur[COL[h]] = "'" + v;
     });
-    sh.getRange(r, 1, 1, HEADERS.length).setValues([cur]);
+    sh.getRange(r, 1, 1, LOG_W).setValues([cur]);
     return { ok: true };
   } finally { lock.releaseLock(); }
 }
@@ -679,7 +754,7 @@ function rows_(limit) {
   const last = sh.getLastRow();
   if (last < 2) return [];
   const start = limit ? Math.max(2, last - limit + 1) : 2;
-  const width = Math.min(HEADERS.length, sh.getLastColumn());
+  const width = sh.getLastColumn();
   const vals = sh.getRange(start, 1, last - start + 1, width).getValues();
   const out = [];
   for (let i = vals.length - 1; i >= 0; i--) {
@@ -696,7 +771,7 @@ function rows_(limit) {
       inTime: v[COL['وقت الدخول']], outTime: v[COL['وقت الخروج']], duration: v[COL['مدة التواجد (س:د)']],
       guardIn: v[COL['فرد الأمن (دخول)']], guardOut: v[COL['فرد الأمن (خروج)']],
       plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
-      phone: v[COL['رقم الموبايل']] || '', address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
+      address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
       edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
