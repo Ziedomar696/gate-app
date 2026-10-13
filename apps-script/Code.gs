@@ -16,6 +16,13 @@ const TOKEN_DAYS = 30;
 const ALERT_HOURS = 8;              // بعد كام ساعة جوه يتبعت تنبيه للإدارة
 const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'فرد أمن' };
 const REASONS_SHEET = 'أسباب الدخول';
+const COMPANIES_SHEET = 'الشركات';
+const DEFAULT_COMPANIES = ['Al Asala', 'Al Rowad', 'Alex builders', 'Alpha Ronix', 'Alruaa', 'Apex', 'Apleona', 'Asym', 'ATS', 'Brother', 'BTC', 'CABS',
+  'Care-Chemical', 'Creative', 'Daghash', 'Dar Al Handsa', 'De Mas', 'Discovery', 'Dore Tent', 'EbdaaOutdoor', 'Eco business', 'Eden', 'EFS',
+  'Egy Blanco', 'egytam', 'El Fares', 'elsewedy', 'ETS', 'Faros', 'Faster', 'Fibermisr', 'Golfscape', 'Horus', 'Ietos', 'Intercom', 'Jennet',
+  'Kassem', 'Kharafi National', 'KMA', 'Kone', 'Legend', 'Marine', 'Modern', 'MRE', 'New Vision', 'OutDoors', 'Roya', 'Russell', 'Salahcom',
+  'Schnieder', 'TKE', 'TOP 10', 'Vee tech', 'Veolia', 'Waves', 'western', 'البيت المصري', 'الشاطر', 'الشركة المتحدة للمقاولات العامة', 'المتحدة',
+  'المستقبل', 'في الخدمة', 'تابع لمالك الوحدة'];
 const DEFAULT_REASONS = ['أعمال صيانة', 'تشطيبات', 'نظافة', 'زراعة وحدائق', 'توريد / توصيل', 'نقل عفش',
   'حمامات سباحة', 'مختصين الزراعة التابعين للوحدات', 'السواقين التابعين للوحدات', 'المفوضين التابعين للوحدات', 'الدليفري'];
 
@@ -54,11 +61,11 @@ function doGet() {
 /** شغّلها من المحرر بعد أي تحديث: بتجهز كل الشيتات. */
 function setup() {
   const ss = ss_();
-  logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_();
+  logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_(); companiesSheet_();
   repairColumns();
   installAlertTrigger_();
   ss.getSheets().forEach(function (s) {
-    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
+    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET, COMPANIES_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
   });
   Logger.log('الشيت جاهز: ' + ss.getName() + ' — ' + ss.getUrl());
   Logger.log(needsSetup() ? 'لسه مفيش حساب إدارة: افتح التطبيق واعمل أول حساب بـ SETUP_CODE.' : 'حسابات الإدارة موجودة.');
@@ -208,6 +215,21 @@ function reasons_() {
 }
 function activeReasons_() { return reasons_().filter(function (r) { return r.active; }).map(function (r) { return r.name; }); }
 
+function companiesSheet_() {
+  return ensureSheet_(COMPANIES_SHEET, ['الشركة / المقاول', 'نشط'], function (sh) {
+    sh.getRange(2, 1, DEFAULT_COMPANIES.length, 2).setValues(DEFAULT_COMPANIES.map(function (r) { return [r, 'نعم']; }));
+  });
+}
+function companies_() {
+  const sh = companiesSheet_();
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, 2).getValues()
+    .filter(function (r) { return String(r[0]).trim(); })
+    .map(function (r) { return { name: String(r[0]).trim(), active: String(r[1]).trim() !== 'لا' }; });
+}
+function activeCompanies_() { return companies_().filter(function (r) { return r.active; }).map(function (r) { return r.name; }); }
+
 function logSectors_() {
   if (!ss_().getSheetByName(LOG_SHEET)) return [];
   const sh = logSheet_();
@@ -329,12 +351,12 @@ function login(username, password) {
   }
   cache.remove(key);
   try { usersSheet_().getRange(u.row, 6).setValue("'" + stamp_(new Date())); dropUsersCache_(); } catch (e) {}
-  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), alertHours: ALERT_HOURS };
+  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), alertHours: ALERT_HOURS };
 }
 
 function whoami(token) {
   const u = auth_(token);
-  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), alertHours: ALERT_HOURS };
+  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), alertHours: ALERT_HOURS };
 }
 
 function changeMyPassword(token, oldPw, newPw) {
@@ -350,7 +372,7 @@ function changeMyPassword(token, oldPw, newPw) {
 
 function adminData(token) {
   auth_(token, ['admin']);
-  return { users: users_().map(publicUser_), gates: gates_(), reasons: reasons_(), roles: ROLES };
+  return { users: users_().map(publicUser_), gates: gates_(), reasons: reasons_(), companies: companies_(), roles: ROLES };
 }
 
 function saveUser(token, d) {
@@ -420,6 +442,20 @@ function saveReason(token, name, active) {
   return adminData(token);
 }
 
+function saveCompany(token, name, active) {
+  auth_(token, ['admin']);
+  name = clean_(name);
+  if (!name) throw new Error('اكتب اسم الشركة.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const sh = companiesSheet_();
+    const i = companies_().map(function (r) { return r.name; }).indexOf(name);
+    if (i >= 0) sh.getRange(i + 2, 2).setValue(active === false ? 'لا' : 'نعم');
+    else sh.appendRow(["'" + name, 'نعم']);
+  } finally { lock.releaseLock(); }
+  return adminData(token);
+}
+
 function saveGate(token, name, active) {
   auth_(token, ['admin']);
   name = clean_(name);
@@ -450,6 +486,7 @@ function getState(token, day, gate) {
     late: lateList_(rows),
     gates: myGates_(u),
     reasons: activeReasons_(),
+    companies: activeCompanies_(),
     alertHours: ALERT_HOURS
   };
 }
@@ -494,6 +531,7 @@ function saveEntry(token, e) {
   if (!name) throw new Error('اكتب الاسم.');
   const p = parseNid_(nid);
   if (!p) throw new Error('الرقم القومي لازم يكون ١٤ رقم صحيح.');
+  if (!clean_(e.dest)) throw new Error('اكتب هو رايح فين (الوحدة / الموقع).');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);

@@ -56,6 +56,9 @@ input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px 
 input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--brand)}
 input:focus-visible,select:focus-visible,button:focus-visible,.scanbtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 input.flag{border-color:var(--warn);background:var(--warn-soft)}
+input.req-miss{border:2px solid #C62828 !important;background:#FDECEC !important}
+.req-msg{color:#C62828;font-size:13px;font-weight:700}
+.req{color:#C62828}
 .grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,4fr);gap:16px;align-items:start}
 @media (max-width:820px){.grid2{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:grid;gap:14px;min-width:0}
@@ -259,12 +262,15 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f wide">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
           <div class="derived wide" id="derived"></div>
           <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
-          <label class="f">رايح فين (وحدة / موقع)<input id="dest" placeholder="مثال: فيلا 42"></label>
+          <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" required aria-required="true"><span class="req-msg" id="destMsg" hidden>لازم تكتب هو رايح فين.</span></label>
           <label class="f">سبب الدخول
             <select id="reason"></select>
             <input id="reasonOther" placeholder="اكتب السبب" hidden>
           </label>
-          <label class="f">الشركة / المقاول / صاحب العمل<input id="company"></label>
+          <label class="f">الشركة / المقاول / صاحب العمل
+            <select id="company"></select>
+            <input id="companyOther" placeholder="اكتب التبعية (تبع مين؟)" hidden>
+          </label>
           <label class="f">ملاحظات<input id="notes"></label>
         </div>
         <section class="veh">
@@ -379,6 +385,15 @@ dialog form{padding:16px;display:grid;gap:12px}
       </form>
       <p class="hint">السبب الموقوف بيختفي من القايمة، بس بيفضل في الحركات القديمة والتقارير.</p>
     </section>
+    <section class="card">
+      <h2>الشركات / المقاولين</h2>
+      <div class="gate-list" id="companyList"></div>
+      <form class="bar-row" id="companyForm">
+        <label class="f grow">شركة جديدة<input id="newCompany" placeholder="مثال: Orascom"></label>
+        <button class="solid" type="submit">إضافة</button>
+      </form>
+      <p class="hint">الشركة الموقوفة بتختفي من القايمة، بس بتفضل في الحركات القديمة والتقارير. ولو الشخص مش تبع أي شركة في القايمة، فرد الأمن يختار «أخرى» ويكتب التبعية.</p>
+    </section>
   </section>
 </div>
 
@@ -428,7 +443,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <label class="f wide">العنوان<input id="eAddress"></label>
       <label class="f">رايح فين<input id="eDest"></label>
       <label class="f">سبب الدخول<select id="eReason"></select><input id="eReasonOther" placeholder="اكتب السبب" hidden></label>
-      <label class="f">الشركة / صاحب العمل<input id="eCompany"></label>
+      <label class="f">الشركة / صاحب العمل<select id="eCompany"></select><input id="eCompanyOther" placeholder="اكتب التبعية (تبع مين؟)" hidden></label>
       <label class="f">ملاحظات<input id="eNotes"></label>
       <label class="f wide">رقم اللوحة (سيبه فاضي لو مفيش مركبة)<input id="ePlate" placeholder="م س ع 1234" autocomplete="off"></label>
     </div>
@@ -454,14 +469,16 @@ dialog form{padding:16px;display:grid;gap:12px}
   };
   var GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
   var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", gate: "فرد أمن" };
-  var REASONS = [], ALERT_H = 8;
-  function fillReasons(sel, other, current){
+  var REASONS = [], COMPANIES = [], ALERT_H = 8;
+  function fillList(sel, other, list, current, first, otherLbl){
     current = current || "";
-    var known = REASONS.indexOf(current) >= 0 || !current;
-    sel.innerHTML = '<option value="">— اختار السبب —</option>' + REASONS.map(function(r){ return "<option>"+esc(r)+"</option>"; }).join("") + '<option value="__other">أخرى…</option>';
+    var known = list.indexOf(current) >= 0 || !current;
+    sel.innerHTML = '<option value="">'+esc(first)+'</option>' + list.map(function(r){ return '<option value="'+esc(r)+'">\u2068'+esc(r)+'\u2069</option>'; }).join("") + '<option value="__other">'+esc(otherLbl)+'</option>';
     sel.value = known ? current : "__other";
     other.hidden = sel.value !== "__other"; other.value = known ? "" : current;
   }
+  function fillReasons(sel, other, current){ fillList(sel, other, REASONS, current, "— اختار السبب —", "أخرى…"); }
+  function fillCompanies(sel, other, current){ fillList(sel, other, COMPANIES, current, "— اختار الشركة —", "أخرى (اكتب التبعية)…"); }
   function getReason(sel, other){ return sel.value === "__other" ? other.value.trim() : sel.value; }
   function bindOther(sel, other){ sel.addEventListener("change", function(){ other.hidden = sel.value !== "__other"; if(!other.hidden) other.focus(); }); }
   function isLate(e){ return !e.outMs && e.inMs && Date.now() - e.inMs > ALERT_H * 3600e3; }
@@ -541,7 +558,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   function signedIn(r){
     TOKEN = r.token || TOKEN; store.set("gate.token", TOKEN);
     ME = r.me; MYGATES = r.gates || [];
-    if(r.reasons) REASONS = r.reasons; if(r.alertHours) ALERT_H = r.alertHours;
+    if(r.reasons) REASONS = r.reasons; if(r.companies) COMPANIES = r.companies; if(r.alertHours) ALERT_H = r.alertHours;
     start();
   }
   $("#loginForm").addEventListener("submit", function(e){
@@ -589,6 +606,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#meName").textContent = ME.name;
     $("#guardName").textContent = ME.name;
     fillReasons($("#reason"), $("#reasonOther"), "");
+    fillCompanies($("#company"), $("#companyOther"), "");
     $("#meRole").textContent = ROLE_LABEL[ME.role] || ME.role;
     var visible = 0;
     $$("#tabs button").forEach(function(b){
@@ -617,6 +635,10 @@ dialog form{padding:16px;display:grid;gap:12px}
   // ================================================================ gate
   bindOther($("#reason"), $("#reasonOther"));
   bindOther($("#eReason"), $("#eReasonOther"));
+  bindOther($("#company"), $("#companyOther"));
+  bindOther($("#eCompany"), $("#eCompanyOther"));
+  function destMark(on){ $("#dest").classList.toggle("req-miss", on); $("#destMsg").hidden = !on; }
+  $("#dest").addEventListener("input", function(){ if(this.value.trim()) destMark(false); });
   $("#sector").addEventListener("change", function(e){ store.set("gate.sector", e.target.value); refresh(); });
 
   function refreshDerived(){
@@ -712,8 +734,10 @@ dialog form{padding:16px;display:grid;gap:12px}
   }
 
   function clearForm(){
-    ["name","nid","address","dest","company","notes"].forEach(function(id){ $("#"+id).value = ""; });
+    ["name","nid","address","dest","notes"].forEach(function(id){ $("#"+id).value = ""; });
     fillReasons($("#reason"), $("#reasonOther"), "");
+    fillCompanies($("#company"), $("#companyOther"), "");
+    destMark(false);
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
     clearCar();
@@ -728,7 +752,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       sector: $("#sector").value,
       name: $("#name").value.trim(), nid: cleanNid($("#nid").value),
       address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: getReason($("#reason"), $("#reasonOther")),
-      company: $("#company").value.trim(), notes: $("#notes").value.trim(),
+      company: getReason($("#company"), $("#companyOther")), notes: $("#notes").value.trim(),
       plate: ""
     };
     if($("#hasCar").checked){
@@ -738,6 +762,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
     if(!entry.name){ toast("اكتب الاسم."); $("#name").focus(); return; }
     if(!parseNid(entry.nid)){ toast("الرقم القومي لازم يكون ١٤ رقم صحيح."); $("#nid").focus(); return; }
+    if(!entry.dest){ destMark(true); toast("لازم تكتب هو رايح فين (الوحدة / الموقع)."); $("#dest").focus(); return; }
+    if($("#company").value === "__other" && !entry.company){ toast("اكتب التبعية (تبع مين؟)."); $("#companyOther").focus(); return; }
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
       toast("اتسجل دخول " + entry.name.split(" ")[0] + " الساعة " + r.time);
@@ -762,6 +788,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       state = s;
       if(s.gates && s.gates.join("|") !== MYGATES.join("|")){ MYGATES = s.gates; fillGateSelects(); }
       if(s.alertHours) ALERT_H = s.alertHours;
+      if(s.companies && s.companies.join("|") !== COMPANIES.join("|")){ var cc = getReason($("#company"), $("#companyOther")); COMPANIES = s.companies; fillCompanies($("#company"), $("#companyOther"), cc); }
       if(s.reasons && s.reasons.join("|") !== REASONS.join("|")){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = s.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
       render();
       $("#sync").textContent = "· آخر تحديث " + hm(Date.now());
@@ -829,7 +856,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     var x = findEntry(b.getAttribute("data-edit-entry")); if(!x) return;
     editId = x.id;
     $("#eTitle").textContent = "تعديل: " + x.name;
-    var map = { eName:"name", eNid:"nid", eAddress:"address", eDest:"dest", eCompany:"company", eNotes:"notes", ePlate:"plate" };
+    var map = { eName:"name", eNid:"nid", eAddress:"address", eDest:"dest", eNotes:"notes", ePlate:"plate" };
+    fillCompanies($("#eCompany"), $("#eCompanyOther"), x.company);
     Object.keys(map).forEach(function(k){ $("#"+k).value = x[map[k]] || ""; });
     fillReasons($("#eReason"), $("#eReasonOther"), x.reason);
     $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
@@ -844,7 +872,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     e.preventDefault();
     var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value),
       address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: getReason($("#eReason"), $("#eReasonOther")),
-      company: $("#eCompany").value.trim(), notes: $("#eNotes").value.trim(),
+      company: getReason($("#eCompany"), $("#eCompanyOther")), notes: $("#eNotes").value.trim(),
       plate: plateNorm($("#ePlate").value) };
     if(!d.name){ $("#eMsg").textContent = "اكتب الاسم."; return; }
     if(!parseNid(d.nid)){ $("#eMsg").textContent = "الرقم القومي لازم يكون ١٤ رقم صحيح."; return; }
@@ -949,6 +977,9 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#reasonList").innerHTML = (admin.reasons || []).map(function(g){
       return '<span class="gate-item'+(g.active ? "" : " off")+'"><b>'+esc(g.name)+'</b><button class="sm" type="button" data-reason="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
     }).join("");
+    $("#companyList").innerHTML = (admin.companies || []).map(function(g){
+      return '<span class="gate-item'+(g.active ? "" : " off")+'"><b><bdi>'+esc(g.name)+'</bdi></b><button class="sm" type="button" data-company="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
+    }).join("");
     $("#gateList").innerHTML = admin.gates.map(function(g){
       return '<span class="gate-item'+(g.active ? "" : " off")+'"><b>'+esc(g.name)+'</b><button class="sm" type="button" data-gate="'+esc(g.name)+'" data-on="'+(g.active ? "0" : "1")+'">'+(g.active ? "إيقاف" : "تشغيل")+'</button></span>';
     }).join("");
@@ -968,7 +999,20 @@ dialog form{padding:16px;display:grid;gap:12px}
   function refreshGates(){ run("whoami", TOKEN).then(function(r){
     ME = r.me; MYGATES = r.gates; fillGateSelects();
     if(r.reasons){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = r.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
+    if(r.companies){ var cc = getReason($("#company"), $("#companyOther")); COMPANIES = r.companies; fillCompanies($("#company"), $("#companyOther"), cc); }
   }).catch(function(){}); }
+  $("#companyList").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-company]"); if(!b) return;
+    busy(b, true);
+    run("saveCompany", TOKEN, b.getAttribute("data-company"), b.getAttribute("data-on") === "1").then(function(d){ admin = d; drawAdmin(); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); busy(b, false); });
+  });
+  $("#companyForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var n = $("#newCompany").value.trim(); if(!n) return;
+    run("saveCompany", TOKEN, n, true).then(function(d){ admin = d; drawAdmin(); $("#newCompany").value = ""; toast("اتضافت الشركة: " + n); refreshGates(); })
+      .catch(function(err){ toast(errMsg(err)); });
+  });
   $("#reasonList").addEventListener("click", function(e){
     var b = e.target.closest("button[data-reason]"); if(!b) return;
     busy(b, true);
