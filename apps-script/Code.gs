@@ -496,10 +496,33 @@ function ocrId(token, base64, mime) {
   return parseIdText_(ocrText_(base64, mime));
 }
 
-/** صورة رخصة المركبة → رقم اللوحة والماركة واللون. */
+/** صورة نمرة العربية (أو الرخصة) → رقم اللوحة. */
 function ocrCar(token, base64, mime) {
   auth_(token);
-  return parseCarText_(ocrText_(base64, mime));
+  return parsePlateText_(ocrText_(base64, mime));
+}
+
+/**
+ * نص صورة النمرة: الحروف والأرقام ممكن ييجوا في سطور منفصلة، وجنبهم "مصر EGYPT".
+ * بنجرب الأول طريقة السطر الواحد، ولو مانفعتش بنجمع الحروف المنفصلة وأول رقم من ١-٤ أرقام.
+ */
+function parsePlateText_(text) {
+  const out = parseCarText_(text);
+  if (out.plate) return out;
+  const clean = latinDigits_(String(text || ''))
+    .replace(/[ً-ْـ]/g, '')
+    .replace(/مصر|EGYPT|Egypt|egypt|ملاكى|ملاكي|اجره|أجرة|اجرة|نقل|خاص|ملاكي/g, ' ')
+    .replace(/[A-Za-z]/g, ' ')
+    .replace(/[|_:：.،,\-]/g, ' ');
+  const tokens = clean.split(/\s+/).filter(String);
+  const isPlateLetters = new RegExp('^[' + PLATE_LETTERS + 'إآ' + ']{1,3}$');
+  let letters = '', nums = '';
+  tokens.forEach(function (t) {
+    if (!nums && /^\d{1,4}$/.test(t)) nums = t;
+    else if (isPlateLetters.test(t) && (letters.replace(/\s/g, '') + t).length <= 3) letters += t;
+  });
+  if (letters && nums) out.plate = plateNorm_(letters + ' ' + nums);
+  return out;
 }
 
 function ocrText_(base64, mime) {
@@ -522,16 +545,22 @@ function ocrText_(base64, mime) {
   return text;
 }
 
+/** عدد الأسماء في الاسم (كلمات فيها حروف). */
+function nameWords_(s) { return String(s || '').trim().split(/\s+/).filter(function (w) { return /[\u0600-\u06FFA-Za-z]/.test(w); }).length; }
+
 function saveEntry(token, e) {
   const u = auth_(token);
   const name = clean_(e.name), nid = digits_(e.nid), guard = u.name;   // فرد الأمن = صاحب الحساب
   const sector = u.role === 'gate' ? u.gates[0] : clean_(e.sector);
   if (!sector) throw new Error('اختار البوابة.');
   if (myGates_(u).indexOf(sector) < 0) throw new Error('حسابك مش مسموح له يسجّل على بوابة ' + sector + '.');
-  if (!name) throw new Error('اكتب الاسم.');
+  if (nameWords_(name) < 3) throw new Error('اكتب الاسم ثلاثي على الأقل (٣ أسماء).');
   const p = parseNid_(nid);
   if (!p) throw new Error('الرقم القومي لازم يكون ١٤ رقم صحيح.');
+  if (!clean_(e.address)) throw new Error('اكتب العنوان.');
   if (!clean_(e.dest)) throw new Error('اكتب هو رايح فين (الوحدة / الموقع).');
+  if (!clean_(e.reason)) throw new Error('اختار سبب الدخول.');
+  if (!clean_(e.company)) throw new Error('اختار الشركة أو اكتب التبعية.');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -631,6 +660,7 @@ function updateEntry(token, id, e) {
       const other = rows_(3000).filter(function (x) { return !x.outMs && x.nid === nid && x.id !== id; })[0];
       if (other) throw new Error('الرقم القومي ده لشخص متسجل جوه من ' + other.inTime + ' (' + other.sector + ').');
     }
+    if (name !== String(cur[COL['الاسم']]).trim() && nameWords_(name) < 3) throw new Error('اكتب الاسم ثلاثي على الأقل (٣ أسماء).');
     const set = function (h, v, text) { cur[COL[h]] = text && v !== '' ? "'" + v : v; };
     set('الاسم', name); set('الرقم القومي', nid, true); set('تاريخ الميلاد', p.dob, true);
     set('النوع', p.gender); set('المحافظة', p.gov);

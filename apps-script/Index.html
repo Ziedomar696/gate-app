@@ -56,7 +56,7 @@ input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px 
 input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--brand)}
 input:focus-visible,select:focus-visible,button:focus-visible,.scanbtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 input.flag{border-color:var(--warn);background:var(--warn-soft)}
-input.req-miss{border:2px solid #C62828 !important;background:#FDECEC !important}
+input.req-miss,select.req-miss{border:2px solid #C62828 !important;background:#FDECEC !important}
 .req-msg{color:#C62828;font-size:13px;font-weight:700}
 .req{color:#C62828}
 .grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,4fr);gap:16px;align-items:start}
@@ -258,18 +258,20 @@ dialog form{padding:16px;display:grid;gap:12px}
         <details class="raw" id="rawBox" hidden><summary>النص اللي اتقرا من البطاقة</summary><pre id="rawText"></pre></details>
 
         <div class="fields">
-          <label class="f wide">الاسم بالكامل<input id="name"></label>
-          <label class="f wide">الرقم القومي (١٤ رقم)<input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
+          <label class="f wide"><span>الاسم بالكامل (ثلاثي على الأقل) <b class="req">*</b></span><input id="name" aria-required="true"><span class="req-msg" data-for="name" hidden>لازم تكتب الاسم ثلاثي على الأقل (٣ أسماء).</span></label>
+          <label class="f wide"><span>الرقم القومي (١٤ رقم) <b class="req">*</b></span><input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right" aria-required="true"><span class="req-msg" data-for="nid" hidden>لازم تكتب الرقم القومي صح (١٤ رقم).</span></label>
           <div class="derived wide" id="derived"></div>
-          <label class="f wide">العنوان (من البطاقة)<input id="address"></label>
-          <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" required aria-required="true"><span class="req-msg" id="destMsg" hidden>لازم تكتب هو رايح فين.</span></label>
-          <label class="f">سبب الدخول
-            <select id="reason"></select>
+          <label class="f wide"><span>العنوان (من البطاقة) <b class="req">*</b></span><input id="address" aria-required="true"><span class="req-msg" data-for="address" hidden>لازم تكتب العنوان.</span></label>
+          <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" aria-required="true"><span class="req-msg" data-for="dest" hidden>لازم تكتب هو رايح فين.</span></label>
+          <label class="f"><span>سبب الدخول <b class="req">*</b></span>
+            <select id="reason" aria-required="true"></select>
             <input id="reasonOther" placeholder="اكتب السبب" hidden>
+            <span class="req-msg" data-for="reason" hidden>لازم تختار سبب الدخول.</span>
           </label>
-          <label class="f">الشركة / المقاول / صاحب العمل
-            <select id="company"></select>
+          <label class="f"><span>الشركة / المقاول / صاحب العمل <b class="req">*</b></span>
+            <select id="company" aria-required="true"></select>
             <input id="companyOther" placeholder="اكتب التبعية (تبع مين؟)" hidden>
+            <span class="req-msg" data-for="company" hidden>لازم تختار الشركة أو تكتب التبعية.</span>
           </label>
           <label class="f">ملاحظات<input id="notes"></label>
         </div>
@@ -279,13 +281,13 @@ dialog form{padding:16px;display:grid;gap:12px}
             <div class="scanrow">
               <label class="scanbtn small" id="carScanBtn">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14M6 17l1.5-5h9L18 17M4 17v2h3v-2M17 17v2h3v-2"/><path d="M7.5 12 9 8h6l1.5 4"/><circle cx="8" cy="14.5" r=".8"/><circle cx="16" cy="14.5" r=".8"/></svg>
-                <span>صوّر رخصة المركبة<small>الوش اللي فيه رقم اللوحة</small></span>
-                <input type="file" id="carPhoto" accept="image/*" capture="environment" aria-label="صورة رخصة المركبة">
+                <span>صوّر نمرة العربية<small>اللوحة من قدام أو ورا، قريبة وواضحة</small></span>
+                <input type="file" id="carPhoto" accept="image/*" capture="environment" aria-label="صورة نمرة العربية">
               </label>
               <div class="thumb" id="carThumb">مفيش صورة</div>
             </div>
             <div class="status" id="carStatus" aria-live="polite">أو اكتب رقم اللوحة بإيدك.</div>
-            <details class="raw" id="carRawBox" hidden><summary>النص اللي اتقرا من الرخصة</summary><pre id="carRawText"></pre></details>
+            <details class="raw" id="carRawBox" hidden><summary>النص اللي اتقرا من النمرة</summary><pre id="carRawText"></pre></details>
             <div class="fields">
               <label class="f wide">رقم اللوحة (حروف وأرقام)<input id="plate" placeholder="م س ع 1234" autocomplete="off"></label>
             </div>
@@ -637,8 +639,27 @@ dialog form{padding:16px;display:grid;gap:12px}
   bindOther($("#eReason"), $("#eReasonOther"));
   bindOther($("#company"), $("#companyOther"));
   bindOther($("#eCompany"), $("#eCompanyOther"));
-  function destMark(on){ $("#dest").classList.toggle("req-miss", on); $("#destMsg").hidden = !on; }
-  $("#dest").addEventListener("input", function(){ if(this.value.trim()) destMark(false); });
+  // الخانات الإجبارية: لو فاضية بتحمر ويظهر تحتها رسالة، وبيروح الأحمر أول ما تتملي
+  var REQ = ["name","nid","address","dest","reason","company"];
+  function nameWords(v){ return String(v || "").trim().split(/\s+/).filter(function(w){ return /[\u0600-\u06FFA-Za-z]/.test(w); }).length; }
+  function reqEl(k){ var sel = $("#"+k), other = $("#"+k+"Other"); return other && sel.value === "__other" ? other : sel; }
+  function reqOk(k){
+    if(k === "nid") return !!parseNid(cleanNid($("#nid").value));
+    if(k === "name") return nameWords($("#name").value) >= 3;
+    if(k === "reason" || k === "company") return !!getReason($("#"+k), $("#"+k+"Other"));
+    return !!$("#"+k).value.trim();
+  }
+  function reqMark(k, on){
+    [$("#"+k), $("#"+k+"Other")].forEach(function(el){ if(el) el.classList.remove("req-miss"); });
+    if(on) reqEl(k).classList.add("req-miss");
+    var m = document.querySelector('.req-msg[data-for="'+k+'"]'); if(m) m.hidden = !on;
+  }
+  function reqClear(){ REQ.forEach(function(k){ reqMark(k, false); }); }
+  REQ.forEach(function(k){
+    [$("#"+k), $("#"+k+"Other")].forEach(function(el){ if(!el) return;
+      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", function(){ var m = document.querySelector('.req-msg[data-for="'+k+'"]'); if(m && !m.hidden) reqMark(k, !reqOk(k)); });
+    });
+  });
   $("#sector").addEventListener("change", function(e){ store.set("gate.sector", e.target.value); refresh(); });
 
   function refreshDerived(){
@@ -714,7 +735,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var file = e.target.files && e.target.files[0];
     e.target.value = "";
     if(!file) return;
-    $("#carScanBtn").classList.add("busy"); carStatus("بقرا الرخصة… ثواني", "", true); $("#carRawBox").hidden = true;
+    $("#carScanBtn").classList.add("busy"); carStatus("بقرا النمرة… ثواني", "", true); $("#carRawBox").hidden = true;
     shrink(file).then(function(dataUrl){
       var th = $("#carThumb"); th.textContent = ""; th.style.backgroundImage = "url('" + dataUrl + "')";
       return run("ocrCar", TOKEN, dataUrl.split(",")[1], "image/jpeg");
@@ -722,7 +743,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       if(r.plate) $("#plate").value = r.plate;
       if(r.raw){ $("#carRawText").textContent = r.raw; $("#carRawBox").hidden = false; }
       if(r.plate) carStatus("اتقرت. راجع رقم اللوحة مع العربية نفسها.", "ok");
-      else carStatus("ماقدرتش ألاقي رقم اللوحة. اكتبه بإيدك.", "err");
+      else carStatus("ماقدرتش أقرا النمرة. صوّرها أقرب وفي نور كويس، أو اكتب الرقم بإيدك.", "err");
     }).catch(function(err){ carStatus(errMsg(err), "err"); })
     .then(function(){ $("#carScanBtn").classList.remove("busy"); });
   });
@@ -737,7 +758,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     ["name","nid","address","dest","notes"].forEach(function(id){ $("#"+id).value = ""; });
     fillReasons($("#reason"), $("#reasonOther"), "");
     fillCompanies($("#company"), $("#companyOther"), "");
-    destMark(false);
+    reqClear();
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
     clearCar();
@@ -760,10 +781,11 @@ dialog form{padding:16px;display:grid;gap:12px}
       if(!/\d/.test(entry.plate) || !/[ء-ي]/.test(entry.plate)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)، أو شيل علامة «معاه مركبة»."); $("#plate").focus(); return; }
     }
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
-    if(!entry.name){ toast("اكتب الاسم."); $("#name").focus(); return; }
-    if(!parseNid(entry.nid)){ toast("الرقم القومي لازم يكون ١٤ رقم صحيح."); $("#nid").focus(); return; }
-    if(!entry.dest){ destMark(true); toast("لازم تكتب هو رايح فين (الوحدة / الموقع)."); $("#dest").focus(); return; }
-    if($("#company").value === "__other" && !entry.company){ toast("اكتب التبعية (تبع مين؟)."); $("#companyOther").focus(); return; }
+    var missing = REQ.filter(function(k){ var bad = !reqOk(k); reqMark(k, bad); return bad; });
+    if(missing.length){
+      toast(missing.length === 1 ? "فيه خانة لازم تتملي (معلّمة بالأحمر)." : "فيه " + missing.length + " خانات لازم تتملي (معلّمة بالأحمر).");
+      reqEl(missing[0]).focus(); return;
+    }
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
       toast("اتسجل دخول " + entry.name.split(" ")[0] + " الساعة " + r.time);
