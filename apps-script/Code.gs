@@ -17,12 +17,63 @@ const ALERT_HOURS = 8;              // بعد كام ساعة جوه يتبعت 
 const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'فرد أمن' };
 const REASONS_SHEET = 'أسباب الدخول';
 const COMPANIES_SHEET = 'الشركات';
-const DEFAULT_COMPANIES = ['Al Asala', 'Al Rowad', 'Alex builders', 'Alpha Ronix', 'Alruaa', 'Apex', 'Apleona', 'Asym', 'ATS', 'Brother', 'BTC', 'CABS',
-  'Care-Chemical', 'Creative', 'Daghash', 'Dar Al Handsa', 'De Mas', 'Discovery', 'Dore Tent', 'EbdaaOutdoor', 'Eco business', 'Eden', 'EFS',
-  'Egy Blanco', 'egytam', 'El Fares', 'elsewedy', 'ETS', 'Faros', 'Faster', 'Fibermisr', 'Golfscape', 'Horus', 'Ietos', 'Intercom', 'Jennet',
-  'Kassem', 'Kharafi National', 'KMA', 'Kone', 'Legend', 'Marine', 'Modern', 'MRE', 'New Vision', 'OutDoors', 'Roya', 'Russell', 'Salahcom',
-  'Schnieder', 'TKE', 'TOP 10', 'Vee tech', 'Veolia', 'Waves', 'western', 'البيت المصري', 'الشاطر', 'الشركة المتحدة للمقاولات العامة', 'المتحدة',
-  'المستقبل', 'في الخدمة', 'تابع لمالك الوحدة'];
+const DEFAULT_COMPANIES = [
+  'الأصالة', 'الرواد', 'اليكس بيلدرز', 'ألفا رونكس', 'الرؤى', 'ابيكس', 'ابليونا', 'Asym',
+  'ATS', 'برازر', 'بي تي سي', 'كابس', 'كير كيمكال', 'كيريتف', 'دغش', 'دار الهندسة',
+  'دي ماس', 'دي سكفري', 'Dore Tent', 'ابداع اوت دور', 'ايكو بيزنس', 'ايدن', 'EFS', 'إيجي بلانكو',
+  'egytam', 'الفارس', 'السويدي', 'ETS', 'فاروس', 'فاستر', 'فيبر مصر', 'جولف سكيب',
+  'حورس', 'ايتوس', 'انتركوم', 'جينت', 'القاسم', 'الخرافي', 'KMA', 'كوني',
+  'ليجند', 'مارين', 'مودرن', 'MRE', 'نيو فيجن', 'اوت دوورز', 'رؤيا', 'روسيل',
+  'صلاحكم', 'شنايدر', 'TKE', 'توب 10', 'Vee tech', 'فيوليا', 'ويفز', 'ويسترن',
+  'البيت المصري', 'الشاطر', 'الشركة المتحدة للمقاولات العامة', 'المتحدة', 'المستقبل', 'في الخدمة', 'تابع لمالك الوحدة'];
+// الأسماء القديمة (إنجليزي) → العربي: بتتغير مرة واحدة في شيت الشركات وفي السجل القديم.
+const COMPANY_RENAMES = [
+  ['Al Asala', 'الأصالة'],
+  ['Al Rowad', 'الرواد'],
+  ['Alex builders', 'اليكس بيلدرز'],
+  ['Alpha Ronix', 'ألفا رونكس'],
+  ['Alruaa', 'الرؤى'],
+  ['Apex', 'ابيكس'],
+  ['Apleona', 'ابليونا'],
+  ['Brother', 'برازر'],
+  ['BTC', 'بي تي سي'],
+  ['CABS', 'كابس'],
+  ['Care-Chemical', 'كير كيمكال'],
+  ['Creative', 'كيريتف'],
+  ['Daghash', 'دغش'],
+  ['Dar Al Handsa', 'دار الهندسة'],
+  ['De Mas', 'دي ماس'],
+  ['Discovery', 'دي سكفري'],
+  ['EbdaaOutdoor', 'ابداع اوت دور'],
+  ['Eco business', 'ايكو بيزنس'],
+  ['Eden', 'ايدن'],
+  ['Egy Blanco', 'إيجي بلانكو'],
+  ['El Fares', 'الفارس'],
+  ['elsewedy', 'السويدي'],
+  ['Faros', 'فاروس'],
+  ['Faster', 'فاستر'],
+  ['Fibermisr', 'فيبر مصر'],
+  ['Golfscape', 'جولف سكيب'],
+  ['Horus', 'حورس'],
+  ['Ietos', 'ايتوس'],
+  ['Intercom', 'انتركوم'],
+  ['Jennet', 'جينت'],
+  ['Kassem', 'القاسم'],
+  ['Kharafi National', 'الخرافي'],
+  ['Kone', 'كوني'],
+  ['Legend', 'ليجند'],
+  ['Marine', 'مارين'],
+  ['Modern', 'مودرن'],
+  ['New Vision', 'نيو فيجن'],
+  ['OutDoors', 'اوت دوورز'],
+  ['Roya', 'رؤيا'],
+  ['Russell', 'روسيل'],
+  ['Salahcom', 'صلاحكم'],
+  ['Schnieder', 'شنايدر'],
+  ['TOP 10', 'توب 10'],
+  ['Veolia', 'فيوليا'],
+  ['Waves', 'ويفز'],
+  ['western', 'ويسترن']];
 const DEFAULT_REASONS = ['أعمال صيانة', 'تشطيبات', 'نظافة', 'زراعة وحدائق', 'توريد / توصيل', 'نقل عفش',
   'حمامات سباحة', 'مختصين الزراعة التابعين للوحدات', 'السواقين التابعين للوحدات', 'المفوضين التابعين للوحدات', 'الدليفري'];
 
@@ -63,6 +114,7 @@ function setup() {
   const ss = ss_();
   logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_(); companiesSheet_();
   repairColumns();
+  if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) renameCompanies();
   installAlertTrigger_();
   ss.getSheets().forEach(function (s) {
     if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET, COMPANIES_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
@@ -167,7 +219,41 @@ function repairColumns() {
   Logger.log('اتصلح: ' + fixedRows + ' سطر رجع مكانه، و' + dropped + ' عمود متكرر اتشال.');
   return { rows: fixedRows, cols: dropped };
 }
+/** مرة واحدة: أسماء الشركات الإنجليزي تبقى عربي في القايمة وفي الحركات القديمة (التطابق لازم يبقى بالظبط). */
+function renameCompanies() {
+  const map = {};
+  COMPANY_RENAMES.forEach(function (p) { map[p[0]] = p[1]; });
+  const csh = companiesSheet_();
+  let listN = 0, logN = 0;
+  const n = csh.getLastRow() - 1;
+  if (n > 0) {
+    const vals = csh.getRange(2, 1, n, 1).getValues();
+    const have = vals.map(function (r) { return String(r[0]).trim(); });
+    vals.forEach(function (r, i) {
+      const to = map[String(r[0]).trim()];
+      if (!to) return;
+      if (have.indexOf(to) >= 0) return;               // العربي موجود قبل كده
+      csh.getRange(i + 2, 1).setValue("'" + to); have[i] = to; listN++;
+    });
+  }
+  const sh = logSheet_(), last = sh.getLastRow();
+  if (last >= 2) {
+    const rg = sh.getRange(2, COL['الشركة / صاحب العمل'] + 1, last - 1, 1);
+    const v = rg.getValues();
+    let changed = false;
+    v.forEach(function (r) { const to = map[String(r[0]).trim()]; if (to) { r[0] = to; logN++; changed = true; } });
+    if (changed) rg.setValues(v);
+  }
+  PropertiesService.getScriptProperties().setProperty('COMPANIES_AR', '1');
+  Logger.log('أسماء الشركات بقت عربي: ' + listN + ' في القايمة، و' + logN + ' حركة قديمة.');
+  return { list: listN, log: logN };
+}
+
 function autoRepair_() {
+  if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) {
+    const l = LockService.getScriptLock();
+    if (l.tryLock(20000)) { try { if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) renameCompanies(); } catch (e) {} finally { l.releaseLock(); } }
+  }
   if (PropertiesService.getScriptProperties().getProperty('COLS_REPAIRED')) return;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return;
