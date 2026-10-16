@@ -56,6 +56,20 @@ input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px 
 input[type=checkbox],input[type=radio]{width:auto;accent-color:var(--brand)}
 input:focus-visible,select:focus-visible,button:focus-visible,.scanbtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 input.flag{border-color:var(--warn);background:var(--warn-soft)}
+/* تصريح سيستم الايديهات */
+.permit{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;border-radius:12px;padding:12px 14px;border:2px solid}
+.permit[hidden]{display:none}
+.permit .pic{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#ddd}
+.permit .pic.none{display:none}
+.permit b.t{font-size:17px;display:block}
+.permit .sub{font-size:13px;opacity:.85;margin-top:2px}
+.permit.ok{border-color:#1E7B46;background:#E8F5EC;color:#14532D}
+.permit.soon{border-color:#B7791F;background:#FFF6E0;color:#6B4600}
+.permit.bad{border-color:#C62828;background:#FDECEC;color:#7F1D1D}
+.permit.wait{border-color:#9AA5AB;background:#F2F5F6;color:#3A464C}
+.override{border:2px dashed #C62828;border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.override[hidden]{display:none}
+@media (prefers-color-scheme: dark){ .permit.ok{background:#0F2A1B;color:#BFE8CD} .permit.soon{background:#2E2410;color:#F6DCA5} .permit.bad{background:#2E1414;color:#F8C9C9} .permit.wait{background:#1E2528;color:#C9D2D6} }
 input.req-miss,select.req-miss{border:2px solid #C62828 !important;background:#FDECEC !important}
 .req-msg{color:#C62828;font-size:13px;font-weight:700}
 .req{color:#C62828}
@@ -261,6 +275,12 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f wide"><span>الاسم بالكامل (ثلاثي على الأقل) <b class="req">*</b></span><input id="name" aria-required="true"><span class="req-msg" data-for="name" hidden>لازم تكتب الاسم ثلاثي على الأقل (٣ أسماء).</span></label>
           <label class="f wide"><span>الرقم القومي (١٤ رقم) <b class="req">*</b></span><input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right" aria-required="true"><span class="req-msg" data-for="nid" hidden>لازم تكتب الرقم القومي صح (١٤ رقم).</span></label>
           <div class="derived wide" id="derived"></div>
+          <div class="permit wide" id="permitBox" hidden role="status" aria-live="polite"><img class="pic none" id="permitPic" alt="صورة العامل من سيستم الايديهات" referrerpolicy="no-referrer"><div><b class="t" id="permitTitle"></b><div class="sub" id="permitSub"></div></div></div>
+          <div class="override wide" id="overrideBox" hidden>
+            <b>دخول استثنائي (مدير / إدارة بس)</b>
+            <label class="f">سبب الاستثناء<input id="override" placeholder="مثال: التصريح بيتجدد — موافقة أ. عمرو"></label>
+            <span class="hint">الاستثناء بيتسجل باسمك وسببه في السجل.</span>
+          </div>
           <label class="f wide"><span>العنوان (من البطاقة) <b class="req">*</b></span><input id="address" aria-required="true"><span class="req-msg" data-for="address" hidden>لازم تكتب العنوان.</span></label>
           <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" aria-required="true"><span class="req-msg" data-for="dest" hidden>لازم تكتب هو رايح فين.</span></label>
           <label class="f"><span>سبب الدخول <b class="req">*</b></span>
@@ -386,6 +406,20 @@ dialog form{padding:16px;display:grid;gap:12px}
         <button class="solid" type="submit">إضافة</button>
       </form>
       <p class="hint">السبب الموقوف بيختفي من القايمة، بس بيفضل في الحركات القديمة والتقارير.</p>
+    </section>
+    <section class="card">
+      <h2>داتا التصاريح (سيستم الايديهات)</h2>
+      <p class="hint">نزّل ملف التصدير (Excel) من سيستم الايديهات وارفعه هنا. تقدر ترفع أكتر من ملف (شركة لكل ملف)، والسجل بيتحدّث بالرقم التعريفي. فرد الأمن أول ما يكتب الرقم القومي بيشوف حالة التصريح، ولو منتهي أو مستبعد مش هيقدر يسجّله.</p>
+      <div class="kpis" id="permitStats"></div>
+      <div class="bar-row">
+        <label class="f grow">ملفات التصدير (xlsx)<input type="file" id="permitFiles" accept=".xlsx,.xls" multiple></label>
+        <button class="solid" type="button" id="permitUpload">رفع وتحديث</button>
+      </div>
+      <div class="status" id="permitMsg"></div>
+      <label class="f">لو الرقم القومي مش موجود في داتا الايديهات
+        <select id="permitMissing"><option value="block">يتمنع (المدير بس يدخّله باستثناء)</option><option value="warn">تحذير بس، ويقدر يسجّل</option></select>
+      </label>
+      <div class="tablewrap"><table><thead><tr><th>الملف</th><th>عدد السجلات</th><th>آخر رفع</th></tr></thead><tbody id="permitSources"></tbody></table></div>
     </section>
     <section class="card">
       <h2>الشركات / المقاولين</h2>
@@ -677,8 +711,45 @@ dialog form{padding:16px;display:grid;gap:12px}
     var d = $("#dupe");
     if(n.length === 14 && inside){ d.hidden = false; d.textContent = "الشخص ده متسجل جوه من " + inside.inTime + " (" + (inside.sector || "بدون بوابة") + ") ولسه ماخرجش. سجّل خروجه الأول."; }
     else d.hidden = true;
+    if(typeof permitCheck === "function") permitCheck();
   }
   $("#nid").addEventListener("input", refreshDerived);
+
+  // ---------- تصريح سيستم الايديهات ----------
+  var PERMIT = null, permitNid = "", permitCache = {};
+  function permitShow(kind, title, sub, photo){
+    var b = $("#permitBox"); b.hidden = false; b.className = "permit wide " + kind;
+    var ltrDates = function(t){ return String(t || "").replace(/(\d{4}-\d{2}-\d{2})/g, "\u2066$1\u2069"); };
+    $("#permitTitle").textContent = ltrDates(title); $("#permitSub").textContent = ltrDates(sub);
+    var pic = $("#permitPic");
+    if(photo){ pic.classList.remove("none"); pic.onerror = function(){ pic.classList.add("none"); }; pic.src = photo; } else { pic.classList.add("none"); pic.removeAttribute("src"); }
+  }
+  function permitReset(){ PERMIT = null; permitNid = ""; $("#permitBox").hidden = true; $("#overrideBox").hidden = true; $("#override").value = ""; }
+  function permitDraw(v){
+    PERMIT = v;
+    if(!v || v.code === "off"){ $("#permitBox").hidden = true; $("#overrideBox").hidden = true; return; }
+    var who = v.name ? "في السيستم: " + v.name + (v.company ? " — " + v.company : "") : "";
+    var typed = $("#name").value.trim().split(/\s+/)[0], idsFirst = (v.name || "").trim().split(/\s+/)[0];
+    var nameWarn = v.name && typed && idsFirst && typed.replace(/[أإآ]/g,"ا").replace(/ى/g,"ي") !== idsFirst.replace(/[أإآ]/g,"ا").replace(/ى/g,"ي") ? " · ⚠ الاسم مختلف عن اللي في البطاقة، راجعه" : "";
+    if(v.code === "ok") permitShow("ok", "✓ " + v.msg, who + nameWarn, v.photo);
+    else if(v.code === "soon") permitShow("soon", "⚠ " + v.msg, who + nameWarn, v.photo);
+    else if(v.code === "missing" && !v.block) permitShow("soon", "⚠ " + v.msg, "مسموح بالتسجيل حسب إعدادات الإدارة، بس اتأكد من الشخص.", "");
+    else permitShow("bad", "⛔ ممنوع الدخول: " + v.msg, (who ? who + " · " : "") + (ME.role === "gate" ? "مش هتقدر تسجّله. كلّم المدير." : "تقدر تدخّله استثناء بعد ما تكتب السبب تحت."), v.photo);
+    $("#overrideBox").hidden = !(v.block && ME.role !== "gate");
+    if(v.companyAr && !getReason($("#company"), $("#companyOther")) && COMPANIES.indexOf(v.companyAr) >= 0){ $("#company").value = v.companyAr; $("#company").dispatchEvent(new Event("change")); }
+  }
+  function permitCheck(){
+    var n = cleanNid($("#nid").value);
+    if(!parseNid(n)){ if(permitNid) permitReset(); return; }
+    if(n === permitNid) return;
+    permitNid = n;
+    if(permitCache[n]){ permitDraw(permitCache[n]); return; }
+    permitShow("wait", "بيدوّر في سيستم الايديهات…", "", "");
+    run("checkPermit", TOKEN, n).then(function(v){ permitCache[n] = v; if(cleanNid($("#nid").value) === n) permitDraw(v); })
+      .catch(function(err){ permitShow("soon", "ماقدرتش أتأكد من التصريح دلوقتي", errMsg(err), ""); PERMIT = null; });
+  }
+  $("#nid").addEventListener("input", permitCheck);
+  $("#override").addEventListener("input", function(){ if(this.value.trim().length >= 5) this.classList.remove("req-miss"); });
 
   function shrink(file){
     return new Promise(function(res, rej){
@@ -759,6 +830,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     fillReasons($("#reason"), $("#reasonOther"), "");
     fillCompanies($("#company"), $("#companyOther"), "");
     reqClear();
+    permitReset(); permitCache = {};
     var th = $("#thumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#rawBox").hidden = true;
     clearCar();
@@ -785,6 +857,11 @@ dialog form{padding:16px;display:grid;gap:12px}
     if(missing.length){
       toast(missing.length === 1 ? "فيه خانة لازم تتملي (معلّمة بالأحمر)." : "فيه " + missing.length + " خانات لازم تتملي (معلّمة بالأحمر).");
       reqEl(missing[0]).focus(); return;
+    }
+    if(PERMIT && PERMIT.block){
+      if(ME.role === "gate"){ toast("ممنوع الدخول: " + PERMIT.msg.replace(/(\d{4}-\d{2}-\d{2})/g, "\u2066$1\u2069") + ". كلّم المدير."); $("#nid").focus(); return; }
+      entry.override = $("#override").value.trim();
+      if(entry.override.length < 5){ toast("الشخص ده ممنوع: " + PERMIT.msg + ". اكتب سبب الاستثناء الأول."); $("#override").classList.add("req-miss"); $("#override").focus(); return; }
     }
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
@@ -988,6 +1065,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   // ================================================================ admin
   function loadAdmin(){
     run("adminData", TOKEN).then(function(d){ admin = d; drawAdmin(); }).catch(function(err){ toast(errMsg(err)); });
+    run("permitsAdmin", TOKEN).then(drawPermits).catch(function(){});
   }
   function gatesLabel(g){ return g.indexOf("*") >= 0 ? "كل البوابات" : g.join("، "); }
   function drawAdmin(){
@@ -1023,6 +1101,31 @@ dialog form{padding:16px;display:grid;gap:12px}
     if(r.reasons){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = r.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
     if(r.companies){ var cc = getReason($("#company"), $("#companyOther")); COMPANIES = r.companies; fillCompanies($("#company"), $("#companyOther"), cc); }
   }).catch(function(){}); }
+  // ---------- داتا التصاريح ----------
+  function drawPermits(st){
+    var k = function(l, v, sub){ return '<div class="kpi"><span>'+esc(l)+'</span><b>'+fmt(v)+'</b>'+(sub ? '<small>'+esc(sub)+'</small>' : '')+'</div>'; };
+    $("#permitStats").innerHTML = st.total ? k("سجلات في الداتا", st.total) + k("ساري", st.active) + k("منتهي", st.expired) + k("مستبعد", st.excluded)
+      : '<div class="empty">لسه مفيش داتا. ارفع ملف التصدير من سيستم الايديهات، ولحد ما ترفع البرنامج مش هيمنع حد.</div>';
+    $("#permitMissing").value = st.missingMode || "block";
+    var src = Object.keys(st.sources || {});
+    $("#permitSources").innerHTML = src.map(function(f){ return "<tr><td>"+esc(f)+"</td><td class=\"num\">"+fmt(st.sources[f].n)+"</td><td class=\"num\">"+esc(st.sources[f].at)+"</td></tr>"; }).join("") || '<tr><td colspan="3" class="empty">—</td></tr>';
+  }
+  function fileB64(f){ return new Promise(function(res, rej){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(",")[1]); }; r.onerror = function(){ rej(new Error("الملف مش بيفتح.")); }; r.readAsDataURL(f); }); }
+  $("#permitUpload").addEventListener("click", function(){
+    var files = Array.prototype.slice.call($("#permitFiles").files || []);
+    if(!files.length){ toast("اختار ملف التصدير الأول."); return; }
+    var b = $("#permitUpload"), msg = $("#permitMsg"), done = [], i = 0;
+    busy(b, true, "بيرفع…");
+    (function next(){
+      if(i >= files.length){ busy(b, false, "رفع وتحديث"); msg.className = "status ok"; msg.textContent = done.join(" · "); $("#permitFiles").value = ""; return; }
+      var f = files[i++]; msg.className = "status"; msg.textContent = "بيقرا " + f.name + "…";
+      fileB64(f).then(function(b64){ return run("importPermits", TOKEN, b64, f.name); })
+        .then(function(r){ done.push(f.name + ": " + r.added + " جديد، " + r.updated + " اتحدّث"); drawPermits(r.stats); next(); })
+        .catch(function(err){ busy(b, false, "رفع وتحديث"); msg.className = "status err"; msg.textContent = f.name + ": " + errMsg(err); });
+    })();
+  });
+  $("#permitMissing").addEventListener("change", function(e){ run("setPermitMissingMode", TOKEN, e.target.value).then(function(st){ drawPermits(st); toast("اتحفظ."); }).catch(function(err){ toast(errMsg(err)); }); });
+
   $("#companyList").addEventListener("click", function(e){
     var b = e.target.closest("button[data-company]"); if(!b) return;
     busy(b, true);

@@ -17,6 +17,11 @@ const ALERT_HOURS = 8;              // بعد كام ساعة جوه يتبعت 
 const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'فرد أمن' };
 const REASONS_SHEET = 'أسباب الدخول';
 const COMPANIES_SHEET = 'الشركات';
+const PERMITS_SHEET = 'التصاريح';
+// نفس أعمدة ملف التصدير من سيستم الايديهات + مصدر الملف وتاريخ الرفع
+const P_HEADERS = ['الرقم التعريفي', 'الاسم', 'رقم البطاقة', 'اسم الشركة', 'مكان العمل', 'اسم البوابة', 'تاريخ بدء التصريح', 'تاريخ نهاية التصريح', 'الحالة', 'الصورة', 'الملف', 'آخر تحديث'];
+const PC = {}; P_HEADERS.forEach(function (h, i) { PC[h] = i; });
+const PERMIT_WARN_DAYS = 7;
 const DEFAULT_COMPANIES = [
   'الأصالة', 'الرواد', 'اليكس بيلدرز', 'ألفا رونكس', 'الرؤى', 'ابيكس', 'ابليونا', 'Asym',
   'ATS', 'برازر', 'بي تي سي', 'كابس', 'كير كيمكال', 'كيريتف', 'دغش', 'دار الهندسة',
@@ -86,7 +91,8 @@ const HEADERS = [
   'حساب الدخول', 'حساب الخروج',
   'رقم اللوحة', 'المركبة', 'لون المركبة',
   'آخر تعديل', 'محذوف',
-  'تنبيه التأخير'
+  'تنبيه التأخير',
+  'التصريح', 'استثناء'
 ];
 // ترتيب الأعمدة القديم (قبل ما عمود الموبايل يتشال) — بيستخدمه إصلاح الشيت بس.
 const OLD_HEADERS = HEADERS.slice(0, 6).concat(['رقم الموبايل'], HEADERS.slice(6));
@@ -112,12 +118,12 @@ function doGet() {
 /** شغّلها من المحرر بعد أي تحديث: بتجهز كل الشيتات. */
 function setup() {
   const ss = ss_();
-  logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_(); companiesSheet_();
+  logSheet_(); usersSheet_(); gatesSheet_(); reasonsSheet_(); companiesSheet_(); permitsSheet_();
   repairColumns();
   if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) renameCompanies();
   installAlertTrigger_();
   ss.getSheets().forEach(function (s) {
-    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET, COMPANIES_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
+    if ([LOG_SHEET, USERS_SHEET, GATES_SHEET, REASONS_SHEET, COMPANIES_SHEET, PERMITS_SHEET].indexOf(s.getName()) < 0 && s.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(s);
   });
   Logger.log('الشيت جاهز: ' + ss.getName() + ' — ' + ss.getUrl());
   Logger.log(needsSetup() ? 'لسه مفيش حساب إدارة: افتح التطبيق واعمل أول حساب بـ SETUP_CODE.' : 'حسابات الإدارة موجودة.');
@@ -634,6 +640,161 @@ function ocrText_(base64, mime) {
 /** عدد الأسماء في الاسم (كلمات فيها حروف). */
 function nameWords_(s) { return String(s || '').trim().split(/\s+/).filter(function (w) { return /[\u0600-\u06FFA-Za-z]/.test(w); }).length; }
 
+// ================================================================ تصاريح سيستم الايديهات
+
+function permitsSheet_() {
+  return ensureSheet_(PERMITS_SHEET, P_HEADERS, function (sh) {
+    sh.getRange(1, 1, sh.getMaxRows(), P_HEADERS.length).setNumberFormat('@');
+  });
+}
+
+/** الإعداد: لو الرقم القومي مش موجود في داتا الايديهات — block (يتمنع) / warn (تحذير بس). */
+function permitMissingMode_() {
+  return PropertiesService.getScriptProperties().getProperty('PERMIT_MISSING') || 'block';
+}
+function permitsOn_() { return permitsSheet_().getLastRow() > 1; }
+
+function dateKey_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  const m = String(v || '').match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1] + '-' + pad_(+m[2]) + '-' + pad_(+m[3]);
+  const d = String(v || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return d ? d[3] + '-' + pad_(+d[2]) + '-' + pad_(+d[1]) : '';
+}
+
+/** ملف Excel من سيستم الايديهات → صفوف. بيتحول لشيت جوجل مؤقت ويتمسح. */
+function xlsxRows_(base64, name) {
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', name || 'ids.xlsx');
+  let id = null;
+  try {
+    id = Drive.Files.create({ name: 'ids-import-' + Date.now(), mimeType: 'application/vnd.google-apps.spreadsheet' }, blob, { fields: 'id' }).id;
+    return SpreadsheetApp.openById(id).getSheets()[0].getDataRange().getValues();
+  } finally {
+    if (id) { try { Drive.Files.remove(id); } catch (e) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e2) {} } }
+  }
+}
+
+/** رفع ملف (أو أكتر) من سيستم الايديهات. السجل بيتحدّث بالرقم التعريفي، والجديد بيتضاف. */
+function importPermits(token, base64, fileName) {
+  auth_(token, ['admin']);
+  return importPermitRows_(xlsxRows_(base64, fileName), String(fileName || ''));
+}
+
+function importPermitRows_(rows, source) {
+  if (!rows || rows.length < 2) throw new Error('الملف فاضي.');
+  const head = rows[0].map(function (h) { return String(h).trim(); });
+  const idx = function (names) { for (let i = 0; i < names.length; i++) { const k = head.indexOf(names[i]); if (k >= 0) return k; } return -1; };
+  const c = {
+    id: idx(['الرقم التعريفي']), name: idx(['الاسم']), card: idx(['رقم البطاقة', 'الرقم القومي']), company: idx(['اسم الشركة', 'الشركة']),
+    place: idx(['المكان العمل', 'مكان العمل']), gate: idx(['اسم البوابة', 'البوابة']), start: idx(['تاريخ بدء التصريح']),
+    end: idx(['تاريخ نهاية التصريح']), status: idx(['الحالة']), photo: idx(['الصورة'])
+  };
+  if (c.card < 0 || c.end < 0 || c.status < 0) throw new Error('ده مش ملف تصدير من سيستم الايديهات (لازم يبقى فيه «رقم البطاقة» و«تاريخ نهاية التصريح» و«الحالة»).');
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const sh = permitsSheet_();
+    const last = sh.getLastRow();
+    const data = last > 1 ? sh.getRange(2, 1, last - 1, P_HEADERS.length).getValues() : [];
+    const byId = {}, byCard = {};
+    data.forEach(function (r, i) { if (r[0] !== '') byId[String(r[0])] = i; else byCard[String(r[2])] = i; });
+    const now = stamp_(new Date());
+    let added = 0, updated = 0, skipped = 0;
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const card = String(r[c.card] == null ? '' : r[c.card]).replace(/\.0$/, '').trim();
+      if (!card) { skipped++; continue; }
+      const rec = [
+        c.id >= 0 ? String(r[c.id]).replace(/\.0$/, '').trim() : '', c.name >= 0 ? String(r[c.name]).trim() : '', /^\d+$/.test(digits_(card)) && digits_(card).length === 14 ? digits_(card) : card,
+        c.company >= 0 ? String(r[c.company]).trim() : '', c.place >= 0 ? String(r[c.place]).trim() : '', c.gate >= 0 ? String(r[c.gate]).replace(/\.0$/, '').trim() : '',
+        c.start >= 0 ? dateKey_(r[c.start]) : '', dateKey_(r[c.end]), String(r[c.status]).trim(), c.photo >= 0 ? String(r[c.photo]).trim() : '', source, now
+      ];
+      const at = rec[0] ? byId[rec[0]] : byCard[rec[2]];
+      if (at !== undefined) { data[at] = rec; updated++; }
+      else { data.push(rec); if (rec[0]) byId[rec[0]] = data.length - 1; else byCard[rec[2]] = data.length - 1; added++; }
+    }
+    if (data.length) sh.getRange(2, 1, data.length, P_HEADERS.length).setValues(data.map(function (r) { return r.map(function (x) { return String(x); }); }));
+    CacheService.getScriptCache().remove('permitStats');
+    return { added: added, updated: updated, skipped: skipped, stats: permitStats_() };
+  } finally { lock.releaseLock(); }
+}
+
+function permitStats_() {
+  const sh = permitsSheet_(), last = sh.getLastRow();
+  const out = { total: 0, active: 0, expired: 0, excluded: 0, sources: {}, missingMode: permitMissingMode_() };
+  if (last < 2) return out;
+  const today = dayKey_(new Date());
+  sh.getRange(2, 1, last - 1, P_HEADERS.length).getValues().forEach(function (r) {
+    out.total++;
+    const v = permitVerdict_(r, today).code;
+    if (v === 'ok' || v === 'soon') out.active++; else if (v === 'expired') out.expired++; else if (v === 'excluded') out.excluded++;
+    const src = String(r[PC['الملف']] || '—');
+    const s = out.sources[src] || (out.sources[src] = { n: 0, at: '' });
+    s.n++; if (String(r[PC['آخر تحديث']]) > s.at) s.at = String(r[PC['آخر تحديث']]);
+  });
+  return out;
+}
+
+function permitVerdict_(r, today) {
+  const status = String(r[PC['الحالة']]).trim(), end = dateKey_(r[PC['تاريخ نهاية التصريح']]), start = dateKey_(r[PC['تاريخ بدء التصريح']]);
+  if (/مستبعد|محظور|ممنوع|موقوف/.test(status)) return { code: 'excluded', block: true, msg: 'مستبعد من دخول القرية' };
+  if (status && !/مفعل|ساري|نشط/.test(status)) return { code: 'inactive', block: true, msg: 'التصريح حالته «' + status + '»' };
+  if (!end) return { code: 'noend', block: true, msg: 'التصريح مفيهوش تاريخ نهاية' };
+  if (end < today) return { code: 'expired', block: true, msg: 'التصريح منتهي من ' + end };
+  if (start && start > today) return { code: 'notstarted', block: true, msg: 'التصريح لسه مابدأش (بيبدأ ' + start + ')' };
+  const left = Math.round((Date.parse(end) - Date.parse(today)) / 864e5);
+  if (left <= PERMIT_WARN_DAYS) return { code: 'soon', block: false, msg: 'التصريح ساري بس هينتهي ' + end + ' (فاضل ' + left + ' يوم)' };
+  return { code: 'ok', block: false, msg: 'التصريح ساري لحد ' + end };
+}
+
+/** حالة تصريح الرقم القومي. */
+function permitFor_(nid) {
+  nid = digits_(nid);
+  if (!permitsOn_()) return { code: 'off', block: false, msg: '' };
+  const sh = permitsSheet_(), last = sh.getLastRow();
+  const hits = sh.getRange(2, PC['رقم البطاقة'] + 1, last - 1, 1).createTextFinder(nid).matchEntireCell(true).findAll();
+  if (!hits.length) {
+    const block = permitMissingMode_() === 'block';
+    return { code: 'missing', block: block, msg: 'الرقم القومي ده مش موجود في سيستم الايديهات' };
+  }
+  // لو ليه أكتر من سجل (تجديد): بناخد اللي تاريخ نهايته الأبعد، إلا لو فيه سجل «مستبعد» أحدث منه
+  const recs = hits.map(function (h) { return sh.getRange(h.getRow(), 1, 1, P_HEADERS.length).getValues()[0]; });
+  const idOf = function (x) { return Number(x[PC['الرقم التعريفي']]) || 0; };
+  const endOf = function (x) { return dateKey_(x[PC['تاريخ نهاية التصريح']]); };
+  let r = recs.slice().sort(function (a, b) { return endOf(a) < endOf(b) ? 1 : endOf(a) > endOf(b) ? -1 : idOf(b) - idOf(a); })[0];
+  const ex = recs.filter(function (x) { return /مستبعد|محظور|ممنوع|موقوف/.test(String(x[PC['الحالة']])) && idOf(x) >= idOf(r); })[0];
+  if (ex) r = ex;
+  const v = permitVerdict_(r, dayKey_(new Date()));
+  v.name = String(r[PC['الاسم']]).trim(); v.company = String(r[PC['اسم الشركة']]).trim(); v.place = String(r[PC['مكان العمل']]).trim();
+  v.start = dateKey_(r[PC['تاريخ بدء التصريح']]); v.end = dateKey_(r[PC['تاريخ نهاية التصريح']]); v.status = String(r[PC['الحالة']]).trim();
+  v.photo = /^https:\/\//.test(String(r[PC['الصورة']])) ? String(r[PC['الصورة']]) : '';
+  v.companyAr = companyArabic_(v.company);
+  return v;
+}
+
+/** اسم الشركة من سيستم الايديهات (إنجليزي غالبًا) → اسمها في قايمة الشركات. */
+function companyArabic_(name) {
+  const k = String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!k) return '';
+  for (let i = 0; i < COMPANY_RENAMES.length; i++) if (COMPANY_RENAMES[i][0].toLowerCase() === k) return COMPANY_RENAMES[i][1];
+  const list = activeCompanies_();
+  for (let i = 0; i < list.length; i++) if (list[i].toLowerCase() === k) return list[i];
+  return '';
+}
+
+function checkPermit(token, nid) {
+  auth_(token);
+  if (!parseNid_(nid)) throw new Error('الرقم القومي مش مظبوط.');
+  return permitFor_(nid);
+}
+
+function permitsAdmin(token) { auth_(token, ['admin']); return permitStats_(); }
+function setPermitMissingMode(token, mode) {
+  auth_(token, ['admin']);
+  if (['block', 'warn'].indexOf(mode) < 0) throw new Error('اختيار غلط.');
+  PropertiesService.getScriptProperties().setProperty('PERMIT_MISSING', mode);
+  return permitStats_();
+}
+
 function saveEntry(token, e) {
   const u = auth_(token);
   const name = clean_(e.name), nid = digits_(e.nid), guard = u.name;   // فرد الأمن = صاحب الحساب
@@ -653,6 +814,14 @@ function saveEntry(token, e) {
   try {
     const inside = rows_(3000).filter(function (r) { return !r.outMs && r.nid === nid; })[0];
     if (inside) throw new Error('الشخص ده متسجل جوه من ' + inside.inTime + ' (' + inside.sector + ') ولسه ماخرجش.');
+    // تصريح سيستم الايديهات: فرد الأمن مش بيقدر يدخّل الممنوع، والمدير/الإدارة بس باستثناء مكتوب سببه
+    const pv = permitFor_(nid);
+    let override = '';
+    if (pv.block) {
+      if (u.role === 'gate') throw new Error('ممنوع الدخول: ' + pv.msg + '. كلّم المدير.');
+      override = clean_(e.override);
+      if (override.length < 5) throw new Error('ممنوع الدخول: ' + pv.msg + '. لو هتدخّله استثناء، اكتب السبب.');
+    }
     const now = new Date();
     const row = new Array(Math.max(LOG_W, logSheet_().getLastColumn())).fill('');
     row[COL['الاسم']] = name;
@@ -675,6 +844,8 @@ function saveEntry(token, e) {
     row[COL['رقم اللوحة']] = plateNorm_(e.plate);
     row[COL['المركبة']] = clean_(e.vehicle);
     row[COL['لون المركبة']] = clean_(e.vehicleColor);
+    row[COL['التصريح']] = pv.code === 'off' ? '' : pv.msg;
+    row[COL['استثناء']] = override ? u.username + ': ' + override : '';
     ['الرقم القومي', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
       if (row[COL[h]] !== '') row[COL[h]] = "'" + row[COL[h]];
     });
@@ -927,6 +1098,7 @@ function rows_(limit) {
       plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
       address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
       edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
+      permit: v[COL['التصريح']] || '', override: v[COL['استثناء']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
     });
