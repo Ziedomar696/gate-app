@@ -92,7 +92,7 @@ const HEADERS = [
   'رقم اللوحة', 'المركبة', 'لون المركبة',
   'آخر تعديل', 'محذوف',
   'تنبيه التأخير',
-  'التصريح', 'استثناء'
+  'التصريح'
 ];
 // ترتيب الأعمدة القديم (قبل ما عمود الموبايل يتشال) — بيستخدمه إصلاح الشيت بس.
 const OLD_HEADERS = HEADERS.slice(0, 6).concat(['رقم الموبايل'], HEADERS.slice(6));
@@ -443,12 +443,12 @@ function login(username, password) {
   }
   cache.remove(key);
   try { usersSheet_().getRange(u.row, 6).setValue("'" + stamp_(new Date())); dropUsersCache_(); } catch (e) {}
-  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), alertHours: ALERT_HOURS };
+  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS };
 }
 
 function whoami(token) {
   const u = auth_(token);
-  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), alertHours: ALERT_HOURS };
+  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS };
 }
 
 function changeMyPassword(token, oldPw, newPw) {
@@ -578,7 +578,7 @@ function getState(token, day, gate) {
     late: lateList_(rows),
     gates: myGates_(u),
     reasons: activeReasons_(),
-    companies: activeCompanies_(),
+    companies: activeCompanies_(), permitExempt: permitExempt_(),
     alertHours: ALERT_HOURS
   };
 }
@@ -653,6 +653,12 @@ function permitMissingMode_() {
   return PropertiesService.getScriptProperties().getProperty('PERMIT_MISSING') || 'block';
 }
 function permitsOn_() { return permitsSheet_().getLastRow() > 1; }
+/** التبعيات اللي مش بنعملها تصاريح (زي ناس الملاك). بتعدّي بس لو الرقم القومي مش موجود في الداتا خالص. */
+function permitExempt_() {
+  const v = PropertiesService.getScriptProperties().getProperty('PERMIT_EXEMPT');
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  return ['تابع لمالك الوحدة'];
+}
 
 function dateKey_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
@@ -720,7 +726,7 @@ function importPermitRows_(rows, source) {
 
 function permitStats_() {
   const sh = permitsSheet_(), last = sh.getLastRow();
-  const out = { total: 0, active: 0, expired: 0, excluded: 0, sources: {}, missingMode: permitMissingMode_() };
+  const out = { total: 0, active: 0, expired: 0, excluded: 0, sources: {}, missingMode: permitMissingMode_(), exempt: permitExempt_() };
   if (last < 2) return out;
   const today = dayKey_(new Date());
   sh.getRange(2, 1, last - 1, P_HEADERS.length).getValues().forEach(function (r) {
@@ -747,12 +753,14 @@ function permitVerdict_(r, today) {
 }
 
 /** حالة تصريح الرقم القومي. */
-function permitFor_(nid) {
+function permitFor_(nid, company) {
   nid = digits_(nid);
   if (!permitsOn_()) return { code: 'off', block: false, msg: '' };
+  company = String(company || '').trim();
   const sh = permitsSheet_(), last = sh.getLastRow();
   const hits = sh.getRange(2, PC['رقم البطاقة'] + 1, last - 1, 1).createTextFinder(nid).matchEntireCell(true).findAll();
   if (!hits.length) {
+    if (company && permitExempt_().indexOf(company) >= 0) return { code: 'exempt', block: false, msg: company + ' — مش محتاج تصريح' };
     const block = permitMissingMode_() === 'block';
     return { code: 'missing', block: block, msg: 'الرقم القومي ده مش موجود في سيستم الايديهات' };
   }
@@ -788,6 +796,12 @@ function checkPermit(token, nid) {
 }
 
 function permitsAdmin(token) { auth_(token, ['admin']); return permitStats_(); }
+function setPermitExempt(token, list) {
+  auth_(token, ['admin']);
+  list = (Array.isArray(list) ? list : []).map(function (x) { return clean_(x); }).filter(String);
+  PropertiesService.getScriptProperties().setProperty('PERMIT_EXEMPT', JSON.stringify(list));
+  return permitStats_();
+}
 function setPermitMissingMode(token, mode) {
   auth_(token, ['admin']);
   if (['block', 'warn'].indexOf(mode) < 0) throw new Error('اختيار غلط.');
@@ -814,14 +828,9 @@ function saveEntry(token, e) {
   try {
     const inside = rows_(3000).filter(function (r) { return !r.outMs && r.nid === nid; })[0];
     if (inside) throw new Error('الشخص ده متسجل جوه من ' + inside.inTime + ' (' + inside.sector + ') ولسه ماخرجش.');
-    // تصريح سيستم الايديهات: فرد الأمن مش بيقدر يدخّل الممنوع، والمدير/الإدارة بس باستثناء مكتوب سببه
-    const pv = permitFor_(nid);
-    let override = '';
-    if (pv.block) {
-      if (u.role === 'gate') throw new Error('ممنوع الدخول: ' + pv.msg + '. كلّم المدير.');
-      override = clean_(e.override);
-      if (override.length < 5) throw new Error('ممنوع الدخول: ' + pv.msg + '. لو هتدخّله استثناء، اكتب السبب.');
-    }
+    // تصريح سيستم الايديهات: الممنوع مش بيدخل خالص، مفيش استثناءات لأي حد
+    const pv = permitFor_(nid, clean_(e.company));
+    if (pv.block) throw new Error('ممنوع الدخول: ' + pv.msg + '.');
     const now = new Date();
     const row = new Array(Math.max(LOG_W, logSheet_().getLastColumn())).fill('');
     row[COL['الاسم']] = name;
@@ -845,7 +854,6 @@ function saveEntry(token, e) {
     row[COL['المركبة']] = clean_(e.vehicle);
     row[COL['لون المركبة']] = clean_(e.vehicleColor);
     row[COL['التصريح']] = pv.code === 'off' ? '' : pv.msg;
-    row[COL['استثناء']] = override ? u.username + ': ' + override : '';
     ['الرقم القومي', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
       if (row[COL[h]] !== '') row[COL[h]] = "'" + row[COL[h]];
     });
@@ -1098,7 +1106,7 @@ function rows_(limit) {
       plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
       address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
       edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
-      permit: v[COL['التصريح']] || '', override: v[COL['استثناء']] || '',
+      permit: v[COL['التصريح']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
     });

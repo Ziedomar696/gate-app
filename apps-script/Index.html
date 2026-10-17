@@ -67,8 +67,6 @@ input.flag{border-color:var(--warn);background:var(--warn-soft)}
 .permit.soon{border-color:#B7791F;background:#FFF6E0;color:#6B4600}
 .permit.bad{border-color:#C62828;background:#FDECEC;color:#7F1D1D}
 .permit.wait{border-color:#9AA5AB;background:#F2F5F6;color:#3A464C}
-.override{border:2px dashed #C62828;border-radius:12px;padding:10px 12px;display:grid;gap:6px}
-.override[hidden]{display:none}
 @media (prefers-color-scheme: dark){ .permit.ok{background:#0F2A1B;color:#BFE8CD} .permit.soon{background:#2E2410;color:#F6DCA5} .permit.bad{background:#2E1414;color:#F8C9C9} .permit.wait{background:#1E2528;color:#C9D2D6} }
 input.req-miss,select.req-miss{border:2px solid #C62828 !important;background:#FDECEC !important}
 .req-msg{color:#C62828;font-size:13px;font-weight:700}
@@ -276,11 +274,6 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f wide"><span>الرقم القومي (١٤ رقم) <b class="req">*</b></span><input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right" aria-required="true"><span class="req-msg" data-for="nid" hidden>لازم تكتب الرقم القومي صح (١٤ رقم).</span></label>
           <div class="derived wide" id="derived"></div>
           <div class="permit wide" id="permitBox" hidden role="status" aria-live="polite"><img class="pic none" id="permitPic" alt="صورة العامل من سيستم الايديهات" referrerpolicy="no-referrer"><div><b class="t" id="permitTitle"></b><div class="sub" id="permitSub"></div></div></div>
-          <div class="override wide" id="overrideBox" hidden>
-            <b>دخول استثنائي (مدير / إدارة بس)</b>
-            <label class="f">سبب الاستثناء<input id="override" placeholder="مثال: التصريح بيتجدد — موافقة أ. عمرو"></label>
-            <span class="hint">الاستثناء بيتسجل باسمك وسببه في السجل.</span>
-          </div>
           <label class="f wide"><span>العنوان (من البطاقة) <b class="req">*</b></span><input id="address" aria-required="true"><span class="req-msg" data-for="address" hidden>لازم تكتب العنوان.</span></label>
           <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" aria-required="true"><span class="req-msg" data-for="dest" hidden>لازم تكتب هو رايح فين.</span></label>
           <label class="f"><span>سبب الدخول <b class="req">*</b></span>
@@ -417,9 +410,13 @@ dialog form{padding:16px;display:grid;gap:12px}
       </div>
       <div class="status" id="permitMsg"></div>
       <label class="f">لو الرقم القومي مش موجود في داتا الايديهات
-        <select id="permitMissing"><option value="block">يتمنع (المدير بس يدخّله باستثناء)</option><option value="warn">تحذير بس، ويقدر يسجّل</option></select>
+        <select id="permitMissing"><option value="block">يتمنع</option><option value="warn">تحذير بس، ويقدر يسجّل</option></select>
       </label>
       <div class="tablewrap"><table><thead><tr><th>الملف</th><th>عدد السجلات</th><th>آخر رفع</th></tr></thead><tbody id="permitSources"></tbody></table></div>
+      <h3>تبعيات مش بنعملها تصاريح</h3>
+      <p class="hint">زي ناس الملاك. لو فرد الأمن اختار واحدة منهم في خانة الشركة والرقم القومي مش موجود في سيستم الايديهات، بيقدر يسجّله. لكن لو الرقم موجود والتصريح منتهي أو مستبعد، بيتمنع برضو.</p>
+      <div class="gate-list" id="exemptList"></div>
+      <div class="bar-row"><label class="f grow">ضيف تبعية<select id="exemptAdd"></select></label><button class="solid" type="button" id="exemptBtn">إضافة</button></div>
     </section>
     <section class="card">
       <h2>الشركات / المقاولين</h2>
@@ -594,7 +591,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   function signedIn(r){
     TOKEN = r.token || TOKEN; store.set("gate.token", TOKEN);
     ME = r.me; MYGATES = r.gates || [];
-    if(r.reasons) REASONS = r.reasons; if(r.companies) COMPANIES = r.companies; if(r.alertHours) ALERT_H = r.alertHours;
+    if(r.reasons) REASONS = r.reasons; if(r.companies) COMPANIES = r.companies; if(r.permitExempt) EXEMPT = r.permitExempt; if(r.alertHours) ALERT_H = r.alertHours;
     start();
   }
   $("#loginForm").addEventListener("submit", function(e){
@@ -724,18 +721,23 @@ dialog form{padding:16px;display:grid;gap:12px}
     var pic = $("#permitPic");
     if(photo){ pic.classList.remove("none"); pic.onerror = function(){ pic.classList.add("none"); }; pic.src = photo; } else { pic.classList.add("none"); pic.removeAttribute("src"); }
   }
-  function permitReset(){ PERMIT = null; permitNid = ""; $("#permitBox").hidden = true; $("#overrideBox").hidden = true; $("#override").value = ""; }
+  var EXEMPT = [];
+  function permitReset(){ PERMIT = null; permitNid = ""; $("#permitBox").hidden = true; }
   function permitDraw(v){
+    if(v && v.code === "missing"){                 // ناس الملاك وغيرهم: مش محتاجين تصريح
+      var comp = getReason($("#company"), $("#companyOther"));
+      if(comp && $("#company").value !== "__other" && EXEMPT.indexOf(comp) >= 0) v = { code: "exempt", block: false, msg: comp + " — مش محتاج تصريح", raw: v };
+    } else if(v && v.code === "exempt" && v.raw){ v = v.raw; return permitDraw(v); }
     PERMIT = v;
-    if(!v || v.code === "off"){ $("#permitBox").hidden = true; $("#overrideBox").hidden = true; return; }
+    if(!v || v.code === "off"){ $("#permitBox").hidden = true; return; }
     var who = v.name ? "في السيستم: " + v.name + (v.company ? " — " + v.company : "") : "";
     var typed = $("#name").value.trim().split(/\s+/)[0], idsFirst = (v.name || "").trim().split(/\s+/)[0];
     var nameWarn = v.name && typed && idsFirst && typed.replace(/[أإآ]/g,"ا").replace(/ى/g,"ي") !== idsFirst.replace(/[أإآ]/g,"ا").replace(/ى/g,"ي") ? " · ⚠ الاسم مختلف عن اللي في البطاقة، راجعه" : "";
     if(v.code === "ok") permitShow("ok", "✓ " + v.msg, who + nameWarn, v.photo);
     else if(v.code === "soon") permitShow("soon", "⚠ " + v.msg, who + nameWarn, v.photo);
+    else if(v.code === "exempt") permitShow("ok", "✓ " + v.msg, "الرقم القومي مش في سيستم الايديهات، ومسموح لأنه من التبعيات اللي من غير تصريح. اتأكد من الوحدة اللي رايحلها.", "");
     else if(v.code === "missing" && !v.block) permitShow("soon", "⚠ " + v.msg, "مسموح بالتسجيل حسب إعدادات الإدارة، بس اتأكد من الشخص.", "");
-    else permitShow("bad", "⛔ ممنوع الدخول: " + v.msg, (who ? who + " · " : "") + (ME.role === "gate" ? "مش هتقدر تسجّله. كلّم المدير." : "تقدر تدخّله استثناء بعد ما تكتب السبب تحت."), v.photo);
-    $("#overrideBox").hidden = !(v.block && ME.role !== "gate");
+    else permitShow("bad", "⛔ ممنوع الدخول: " + v.msg, (who ? who + " · " : "") + "مينفعش يتسجّل دخوله." + (v.code === "missing" && EXEMPT.length ? " لو تبع مالك وحدة، اختار «" + EXEMPT[0] + "» في خانة الشركة." : ""), v.photo);
     if(v.companyAr && !getReason($("#company"), $("#companyOther")) && COMPANIES.indexOf(v.companyAr) >= 0){ $("#company").value = v.companyAr; $("#company").dispatchEvent(new Event("change")); }
   }
   function permitCheck(){
@@ -749,7 +751,9 @@ dialog form{padding:16px;display:grid;gap:12px}
       .catch(function(err){ permitShow("soon", "ماقدرتش أتأكد من التصريح دلوقتي", errMsg(err), ""); PERMIT = null; });
   }
   $("#nid").addEventListener("input", permitCheck);
-  $("#override").addEventListener("input", function(){ if(this.value.trim().length >= 5) this.classList.remove("req-miss"); });
+  function permitRecheck(){ if(PERMIT && (PERMIT.code === "missing" || PERMIT.code === "exempt")) permitDraw(PERMIT.raw || PERMIT); }
+  $("#company").addEventListener("change", permitRecheck);
+  $("#companyOther").addEventListener("input", permitRecheck);
 
   function shrink(file){
     return new Promise(function(res, rej){
@@ -858,11 +862,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       toast(missing.length === 1 ? "فيه خانة لازم تتملي (معلّمة بالأحمر)." : "فيه " + missing.length + " خانات لازم تتملي (معلّمة بالأحمر).");
       reqEl(missing[0]).focus(); return;
     }
-    if(PERMIT && PERMIT.block){
-      if(ME.role === "gate"){ toast("ممنوع الدخول: " + PERMIT.msg.replace(/(\d{4}-\d{2}-\d{2})/g, "\u2066$1\u2069") + ". كلّم المدير."); $("#nid").focus(); return; }
-      entry.override = $("#override").value.trim();
-      if(entry.override.length < 5){ toast("الشخص ده ممنوع: " + PERMIT.msg + ". اكتب سبب الاستثناء الأول."); $("#override").classList.add("req-miss"); $("#override").focus(); return; }
-    }
+    if(PERMIT && PERMIT.block){ toast("ممنوع الدخول: " + PERMIT.msg.replace(/(\d{4}-\d{2}-\d{2})/g, "\u2066$1\u2069") + "."); $("#nid").focus(); return; }
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
       toast("اتسجل دخول " + entry.name.split(" ")[0] + " الساعة " + r.time);
@@ -887,6 +887,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       state = s;
       if(s.gates && s.gates.join("|") !== MYGATES.join("|")){ MYGATES = s.gates; fillGateSelects(); }
       if(s.alertHours) ALERT_H = s.alertHours;
+      if(s.permitExempt) EXEMPT = s.permitExempt;
       if(s.companies && s.companies.join("|") !== COMPANIES.join("|")){ var cc = getReason($("#company"), $("#companyOther")); COMPANIES = s.companies; fillCompanies($("#company"), $("#companyOther"), cc); }
       if(s.reasons && s.reasons.join("|") !== REASONS.join("|")){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = s.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
       render();
@@ -1107,6 +1108,9 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#permitStats").innerHTML = st.total ? k("سجلات في الداتا", st.total) + k("ساري", st.active) + k("منتهي", st.expired) + k("مستبعد", st.excluded)
       : '<div class="empty">لسه مفيش داتا. ارفع ملف التصدير من سيستم الايديهات، ولحد ما ترفع البرنامج مش هيمنع حد.</div>';
     $("#permitMissing").value = st.missingMode || "block";
+    EXEMPT = st.exempt || [];
+    $("#exemptList").innerHTML = EXEMPT.map(function(x){ return '<span class="gate-item"><b>'+esc(x)+'</b><button class="sm" type="button" data-exempt="'+esc(x)+'">شيل</button></span>'; }).join("") || '<span class="hint">مفيش — كل الناس محتاجة تصريح.</span>';
+    $("#exemptAdd").innerHTML = COMPANIES.filter(function(c){ return EXEMPT.indexOf(c) < 0; }).map(function(c){ return '<option value="'+esc(c)+'">\u2068'+esc(c)+'\u2069</option>'; }).join("");
     var src = Object.keys(st.sources || {});
     $("#permitSources").innerHTML = src.map(function(f){ return "<tr><td>"+esc(f)+"</td><td class=\"num\">"+fmt(st.sources[f].n)+"</td><td class=\"num\">"+esc(st.sources[f].at)+"</td></tr>"; }).join("") || '<tr><td colspan="3" class="empty">—</td></tr>';
   }
@@ -1124,6 +1128,8 @@ dialog form{padding:16px;display:grid;gap:12px}
         .catch(function(err){ busy(b, false, "رفع وتحديث"); msg.className = "status err"; msg.textContent = f.name + ": " + errMsg(err); });
     })();
   });
+  $("#exemptBtn").addEventListener("click", function(){ var v = $("#exemptAdd").value; if(!v) return; run("setPermitExempt", TOKEN, EXEMPT.concat([v])).then(function(st){ drawPermits(st); toast("اتضاف: " + v); }).catch(function(err){ toast(errMsg(err)); }); });
+  $("#exemptList").addEventListener("click", function(e){ var b = e.target.closest("button[data-exempt]"); if(!b) return; var v = b.getAttribute("data-exempt"); run("setPermitExempt", TOKEN, EXEMPT.filter(function(x){ return x !== v; })).then(function(st){ drawPermits(st); toast("اتشال: " + v); }).catch(function(err){ toast(errMsg(err)); }); });
   $("#permitMissing").addEventListener("change", function(e){ run("setPermitMissingMode", TOKEN, e.target.value).then(function(st){ drawPermits(st); toast("اتحفظ."); }).catch(function(err){ toast(errMsg(err)); }); });
 
   $("#companyList").addEventListener("click", function(e){
