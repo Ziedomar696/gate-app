@@ -14,9 +14,13 @@ const GATES_SHEET = 'البوابات';
 const DEFAULT_GATES = ['Arezzo', 'Verona', 'Isola', 'Veneto'];
 const TOKEN_DAYS = 30;
 const ALERT_HOURS = 8;              // بعد كام ساعة جوه يتبعت تنبيه للإدارة
-const ROLES = { admin: 'الإدارة', manager: 'مدير', gate: 'فرد أمن' };
+const ROLES = { admin: 'الإدارة', manager: 'مدير', emaar: 'مشرف أمن إعمار', gate: 'فرد أمن' };
+// مين يقدر يمنع عربية / يفك المنع
+const BAN_ROLES = ['admin', 'emaar'];
 const REASONS_SHEET = 'أسباب الدخول';
 const COMPANIES_SHEET = 'الشركات';
+const BANS_SHEET = 'العربيات الممنوعة';
+const B_HEADERS = ['رقم اللوحة', 'السبب', 'منعها', 'الحساب', 'التاريخ', 'نشط', 'فك المنع بواسطة', 'تاريخ فك المنع'];
 const PERMITS_SHEET = 'التصاريح';
 // نفس أعمدة ملف التصدير من سيستم الايديهات + مصدر الملف وتاريخ الرفع
 const P_HEADERS = ['الرقم التعريفي', 'الاسم', 'رقم البطاقة', 'اسم الشركة', 'مكان العمل', 'اسم البوابة', 'تاريخ بدء التصريح', 'تاريخ نهاية التصريح', 'الحالة', 'الصورة', 'الملف', 'آخر تحديث'];
@@ -588,7 +592,7 @@ function writeUser_(d, isNew) {
   gates = gates.filter(function (g) { return g === '*' || known.indexOf(g) >= 0; });
   if (role === 'admin') gates = ['*'];
   if (role === 'gate' && (gates.length !== 1 || gates[0] === '*')) throw new Error('حساب البوابة لازم يبقى عليه بوابة واحدة بالظبط.');
-  if (role === 'manager' && !gates.length) throw new Error('اختار بوابة واحدة على الأقل للمدير (أو كل البوابات).');
+  if ((role === 'manager' || role === 'emaar') && !gates.length) throw new Error('اختار بوابة واحدة على الأقل (أو كل البوابات).');
   if (gates.indexOf('*') >= 0) gates = ['*'];
 
   const sh = usersSheet_();
@@ -926,6 +930,8 @@ function saveEntry(token, e) {
     // تصريح سيستم الايديهات: الممنوع مش بيدخل خالص، مفيش استثناءات لأي حد
     const pv = permitFor_(nid, clean_(e.company));
     if (pv.block) throw new Error('ممنوع الدخول: ' + pv.msg + '.');
+    const ban = e.plate ? activeBan_(e.plate) : null;
+    if (ban) throw new Error('العربية ' + ban.plate + ' ممنوعة من دخول القطاعات' + (ban.reason ? ' (' + ban.reason + ')' : '') + ' — منعها ' + ban.by + '.');
     const now = new Date();
     const row = new Array(Math.max(LOG_W, logSheet_().getLastColumn())).fill('');
     row[COL['الاسم']] = name;
@@ -1042,7 +1048,7 @@ function updateEntry(token, id, e) {
 
 /** مسح حركة (المدير والإدارة). السطر بيفضل في الشيت متعلّم عليه "محذوف". */
 function deleteEntry(token, id) {
-  const u = auth_(token, ['admin', 'manager']);
+  const u = auth_(token, ['admin', 'manager', 'emaar']);
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     const sh = logSheet_();
@@ -1114,10 +1120,57 @@ function installAlertTrigger_() {
 
 function esc_(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
+// ================================================================ العربيات الممنوعة (مشرف أمن إعمار والإدارة)
+
+function bansSheet_() { return ensureSheet_(BANS_SHEET, B_HEADERS); }
+function plateKey_(p) { return plateNorm_(p).replace(/\s+/g, ''); }
+function bans_() {
+  const sh = bansSheet_(), n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh.getRange(2, 1, n, B_HEADERS.length).getValues().map(function (r, i) {
+    return { row: i + 2, plate: String(r[0]).trim(), key: plateKey_(r[0]), reason: String(r[1] || ''), by: String(r[2] || ''), user: String(r[3] || ''),
+      date: r[4] instanceof Date ? stamp_(r[4]) : String(r[4] || ''), active: String(r[5]).trim() !== 'لا' };
+  }).filter(function (b) { return b.key; });
+}
+function activeBan_(plate) {
+  const k = plateKey_(plate);
+  if (!k) return null;
+  return bans_().filter(function (b) { return b.active && b.key === k; })[0] || null;
+}
+function pubBan_(b) { return b ? { plate: b.plate, reason: b.reason, by: b.by, date: b.date } : null; }
+/** فرد الأمن بيسأل: العربية دي ممنوعة؟ */
+function checkPlate(token, plate) { auth_(token); return pubBan_(activeBan_(plate)); }
+function bannedList(token) {
+  auth_(token, ['admin', 'manager', 'emaar']);
+  return bans_().filter(function (b) { return b.active; }).reverse().map(pubBan_);
+}
+function banCar(token, plate, reason) {
+  const u = auth_(token, BAN_ROLES);
+  const p = plateNorm_(plate);
+  if (!/\d/.test(p) || !/[ء-ي]/.test(p)) throw new Error('اكتب رقم اللوحة كامل (حروف وأرقام).');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    if (activeBan_(p)) throw new Error('العربية دي ممنوعة بالفعل.');
+    bansSheet_().appendRow(["'" + p, clean_(reason), u.name, u.username, "'" + stamp_(new Date()), 'نعم', '', '']);
+  } finally { lock.releaseLock(); }
+  return bannedList(token);
+}
+function unbanCar(token, plate) {
+  const u = auth_(token, BAN_ROLES);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const k = plateKey_(plate), sh = bansSheet_();
+    bans_().filter(function (b) { return b.active && b.key === k; }).forEach(function (b) {
+      sh.getRange(b.row, 6, 1, 3).setValues([['لا', u.name, "'" + stamp_(new Date())]]);
+    });
+  } finally { lock.releaseLock(); }
+  return bannedList(token);
+}
+
 // ================================================================ reports
 
 function getReport(token, from, to, gate) {
-  const u = auth_(token, ['admin', 'manager']);
+  const u = auth_(token, ['admin', 'manager', 'emaar']);
   const today = dayKey_(new Date());
   to = /^\d{4}-\d{2}-\d{2}$/.test(to || '') ? to : today;
   from = /^\d{4}-\d{2}-\d{2}$/.test(from || '') ? from : shiftDay_(to, -6);

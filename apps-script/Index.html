@@ -86,6 +86,7 @@ input.req-miss,select.req-miss{border:2px solid #C62828 !important;background:#F
 .veh{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:10px;background:var(--surface-2)}
 .veh .scanbtn.small{background:var(--surface)}
 .veh-toggle{font-size:15px}
+#viewBans>*,#viewBans .card>*{min-width:0}
 .plate{display:inline-block;font-weight:600;border:1.5px solid var(--ink);border-radius:5px;padding:0 6px;font-size:12.5px;line-height:1.6;white-space:nowrap;background:var(--surface)}
 .thumb{width:120px;aspect-ratio:1.58;max-width:100%;border-radius:8px;border:1px dashed var(--line);background:var(--surface-2) center/cover no-repeat;flex:none;display:grid;place-items:center;color:var(--muted);font-size:11px}
 .status{font-size:13px;color:var(--muted);min-height:1.4em;display:flex;align-items:center;gap:8px}
@@ -237,7 +238,8 @@ dialog form{padding:16px;display:grid;gap:12px}
 
   <nav class="tabs" id="tabs" role="tablist" hidden>
     <button role="tab" data-view="gate" aria-selected="true">البوابة</button>
-    <button role="tab" data-view="reports" data-roles="admin,manager">التقارير</button>
+    <button role="tab" data-view="reports" data-roles="admin,manager,emaar">التقارير</button>
+    <button role="tab" data-view="bans" data-roles="admin,manager,emaar">العربيات الممنوعة</button>
     <button role="tab" data-view="users" data-roles="admin">المستخدمين والبوابات</button>
   </nav>
 
@@ -307,6 +309,7 @@ dialog form{padding:16px;display:grid;gap:12px}
             <div class="fields">
               <label class="f wide">رقم اللوحة (حروف وأرقام)<input id="plate" placeholder="م س ع 1234" autocomplete="off"></label>
             </div>
+            <div class="permit bad" id="plateBan" hidden role="alert"><span style="font-size:28px">🚫</span><div><b class="t" id="plateBanT"></b><div class="sub" id="plateBanS"></div></div></div>
           </div>
         </section>
         <div class="dupe" id="dupe" hidden></div>
@@ -375,10 +378,27 @@ dialog form{padding:16px;display:grid;gap:12px}
   </section>
 
   <!-- ---------- المستخدمين ---------- -->
+  <!-- ---------- العربيات الممنوعة ---------- -->
+  <section id="viewBans" style="display:grid;gap:16px" hidden>
+    <section class="card" id="banCard">
+      <h2>🚫 منع عربية من دخول القطاعات</h2>
+      <p class="hint">اكتب رقم اللوحة ودوس «منع». أي فرد أمن يكتب الرقم ده أو يصوّر النمرة على أي بوابة هيظهرله إنها ممنوعة ومش هيقدر يسجّلها.</p>
+      <form class="fields" id="banForm" autocomplete="off">
+        <label class="f">رقم اللوحة (حروف وأرقام)<input id="banPlate" placeholder="م س ع 1234"></label>
+        <label class="f">السبب (اختياري)<input id="banReason" placeholder="مثال: مخالفة سرعة"></label>
+        <div class="actions wide"><button type="submit" class="primary" id="banBtn">🚫 منع</button></div>
+      </form>
+    </section>
+    <section class="card">
+      <h2>العربيات الممنوعة دلوقتي <span class="chip" id="banCount"></span></h2>
+      <div id="banList"></div>
+    </section>
+  </section>
+
   <section id="viewUsers" style="display:grid;gap:16px" hidden>
     <section class="card">
       <h2>المستخدمين <button class="sm solid" id="addUserBtn" type="button" style="margin-inline-start:auto">+ مستخدم جديد</button></h2>
-      <p class="hint">«فرد أمن»: بيسجّل على بوابته بس، والحركات بتتسجل باسمه. «مدير»: البوابات اللي تحددها + التقارير. «الإدارة»: كل حاجة + المستخدمين.</p>
+      <p class="hint">«فرد أمن»: بيسجّل على بوابته بس، والحركات بتتسجل باسمه. «مدير»: البوابات اللي تحددها + التقارير. «مشرف أمن إعمار»: زي المدير + منع العربيات من دخول القطاعات. «الإدارة»: كل حاجة + المستخدمين.</p>
       <div class="tablewrap">
         <table>
           <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>البوابات</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead>
@@ -441,7 +461,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     <label class="f">الاسم<input id="uName" placeholder="مثال: محمود عبد الله"></label>
     <label class="f">اسم المستخدم (إنجليزي صغير أو أرقام)<input id="uUser" dir="ltr" autocapitalize="none" spellcheck="false" placeholder="verona1"></label>
     <label class="f">الدور
-      <select id="uRole"><option value="gate">فرد أمن</option><option value="manager">مدير</option><option value="admin">الإدارة</option></select>
+      <select id="uRole"><option value="gate">فرد أمن</option><option value="manager">مدير</option><option value="emaar">مشرف أمن إعمار</option><option value="admin">الإدارة</option></select>
     </label>
     <div class="f" style="display:grid;gap:6px;font-size:12.5px;color:var(--muted)">
       <span id="uGatesLbl">البوابة</span>
@@ -506,7 +526,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     set: function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
   };
   var GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
-  var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", gate: "فرد أمن" };
+  var ROLE_LABEL = { admin: "الإدارة", manager: "مدير", emaar: "مشرف أمن إعمار", gate: "فرد أمن" };
+  function canBan(){ return ME && (ME.role === "admin" || ME.role === "emaar"); }
   var REASONS = [], COMPANIES = [], ALERT_H = 8;
   function fillList(sel, other, list, current, first, otherLbl){
     current = current || "";
@@ -635,6 +656,8 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#viewGate").hidden = v !== "gate";
     $("#viewReports").hidden = v !== "reports";
     $("#viewUsers").hidden = v !== "users";
+    $("#viewBans").hidden = v !== "bans";
+    if(v === "bans") loadBans();
     if(v === "reports" && !report) loadReport();
     if(v === "users") loadAdmin();
   }
@@ -836,6 +859,48 @@ dialog form{padding:16px;display:grid;gap:12px}
     }).then(function(){ $("#scanBtn").classList.remove("busy"); });
   });
 
+  // ---------- العربيات الممنوعة ----------
+  var CARBAN = null, banT = null, banSeq = 0;
+  function plateKey(p){ return plateNorm(p).replace(/\s+/g, ""); }
+  function plateBanCheck(){
+    var p = plateNorm($("#plate").value), seq = ++banSeq;
+    if(!$("#hasCar").checked || !/\d/.test(p) || !/[ء-ي]/.test(p)){ CARBAN = null; $("#plateBan").hidden = true; return; }
+    run("checkPlate", TOKEN, p).then(function(b){
+      if(seq !== banSeq) return;
+      CARBAN = b; $("#plateBan").hidden = !b;
+      if(b){ $("#plateBanT").textContent = "العربية " + b.plate + " ممنوعة من دخول القطاعات"; $("#plateBanS").textContent = (b.reason ? "السبب: " + b.reason + " · " : "") + "منعها " + b.by + " — " + b.date; }
+    }).catch(function(){});
+  }
+  $("#plate").addEventListener("input", function(){ clearTimeout(banT); banT = setTimeout(plateBanCheck, 400); });
+  $("#hasCar").addEventListener("change", plateBanCheck);
+  function loadBans(){
+    $("#banCard").hidden = !canBan();
+    $("#banList").innerHTML = '<div class="empty">بيحمّل…</div>';
+    run("bannedList", TOKEN).then(drawBans).catch(function(err){ toast(errMsg(err)); });
+  }
+  function drawBans(list){
+    $("#banCount").textContent = list.length;
+    $("#banList").innerHTML = list.length ? '<div class="tablewrap"><table><thead><tr><th>رقم اللوحة</th><th>السبب</th><th>منعها</th><th>التاريخ</th><th></th></tr></thead><tbody>' +
+      list.map(function(b){ return '<tr><td><span class="plate">'+esc(b.plate)+'</span></td><td>'+esc(b.reason || "—")+'</td><td>'+esc(b.by)+'</td><td class="num">'+esc(b.date)+'</td><td>'+(canBan() ? '<button class="sm" type="button" data-unban="'+esc(b.plate)+'">فك المنع</button>' : '')+'</td></tr>'; }).join("") +
+      '</tbody></table></div>' : '<div class="empty">مفيش عربيات ممنوعة.</div>';
+  }
+  $("#banPlate").addEventListener("blur", function(e){ e.target.value = plateNorm(e.target.value); });
+  $("#banForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var p = plateNorm($("#banPlate").value);
+    if(!/\d/.test(p) || !/[ء-ي]/.test(p)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)."); $("#banPlate").focus(); return; }
+    var b = $("#banBtn"); busy(b, true, "بيمنع…");
+    run("banCar", TOKEN, p, $("#banReason").value.trim()).then(function(list){ drawBans(list); $("#banPlate").value = ""; $("#banReason").value = ""; toast("اتمنعت العربية " + p + " من دخول القطاعات."); })
+      .catch(function(err){ toast(errMsg(err)); }).then(function(){ busy(b, false, "🚫 منع"); });
+  });
+  var unbanArm = null;
+  $("#banList").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-unban]"); if(!b) return;
+    if(unbanArm !== b){ unbanArm = b; b.textContent = "اضغط تاني للتأكيد"; setTimeout(function(){ if(unbanArm === b){ unbanArm = null; b.textContent = "فك المنع"; } }, 4000); return; }
+    unbanArm = null; busy(b, true, "…");
+    run("unbanCar", TOKEN, b.getAttribute("data-unban")).then(function(list){ drawBans(list); toast("اتفك المنع."); }).catch(function(err){ toast(errMsg(err)); busy(b, false, "فك المنع"); });
+  });
+
   // ---------- vehicle ----------
   function plateNorm(s){
     s = latin(s).replace(/[إآ]/g, "أ").replace(/ي/g, "ى");
@@ -858,7 +923,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       var th = $("#carThumb"); th.textContent = ""; th.style.backgroundImage = "url('" + dataUrl + "')";
       return run("ocrCar", TOKEN, dataUrl.split(",")[1], "image/jpeg");
     }).then(function(r){
-      if(r.plate) $("#plate").value = r.plate;
+      if(r.plate){ $("#plate").value = r.plate; plateBanCheck(); }
       if(r.raw){ $("#carRawText").textContent = r.raw; $("#carRawBox").hidden = false; }
       if(r.plate) carStatus("اتقرت. راجع رقم اللوحة مع العربية نفسها.", "ok");
       else carStatus("ماقدرتش أقرا النمرة. صوّرها أقرب وفي نور كويس، أو اكتب الرقم بإيدك.", "err");
@@ -866,7 +931,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     .then(function(){ $("#carScanBtn").classList.remove("busy"); });
   });
   function clearCar(){
-    $("#plate").value = "";
+    $("#plate").value = ""; CARBAN = null; $("#plateBan").hidden = true;
     var th = $("#carThumb"); th.style.backgroundImage = ""; th.textContent = "مفيش صورة";
     $("#carRawBox").hidden = true; $("#hasCar").checked = false; $("#carFields").hidden = true;
     carStatus("أو اكتب رقم اللوحة بإيدك.");
@@ -900,6 +965,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       entry.plate = plateNorm($("#plate").value);
       if(!/\d/.test(entry.plate) || !/[ء-ي]/.test(entry.plate)){ toast("اكتب رقم اللوحة كامل (حروف وأرقام)، أو شيل علامة «معاه مركبة»."); $("#plate").focus(); return; }
     }
+    if(entry.plate && CARBAN && plateKey(CARBAN.plate) === plateKey(entry.plate)){ toast("🚫 العربية " + CARBAN.plate + " ممنوعة من دخول القطاعات" + (CARBAN.reason ? " (" + CARBAN.reason + ")" : "") + "."); $("#plate").focus(); return; }
     if(!entry.sector){ toast("مفيش بوابة متاحة لحسابك. كلّم الإدارة."); return; }
     var missing = REQ.filter(function(k){ var bad = !reqOk(k); reqMark(k, bad); return bad; });
     if(missing.length){
@@ -1008,7 +1074,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     fillReasons($("#eReason"), $("#eReasonOther"), x.reason);
     $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
     $("#eMsg").textContent = "";
-    var canDel = ME.role === "admin" || ME.role === "manager";
+    var canDel = ME.role === "admin" || ME.role === "manager" || ME.role === "emaar";
     $("#eDelete").hidden = !canDel; delArmed = false; $("#eDelete").textContent = "مسح الحركة";
     $("#entryDlg").showModal();
   });
