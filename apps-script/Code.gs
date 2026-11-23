@@ -89,14 +89,18 @@ const HEADERS = [
   'فرد الأمن (دخول)', 'فرد الأمن (خروج)',
   'ID', 'inMs', 'outMs',
   'حساب الدخول', 'حساب الخروج',
-  'رقم اللوحة', 'المركبة', 'لون المركبة',
+  'رقم اللوحة',
   'آخر تعديل', 'محذوف',
   'تنبيه التأخير',
   'التصريح',
   'محافظة العنوان'
 ];
 // ترتيب الأعمدة القديم (قبل ما عمود الموبايل يتشال) — بيستخدمه إصلاح الشيت بس.
-const OLD_HEADERS = HEADERS.slice(0, 6).concat(['رقم الموبايل'], HEADERS.slice(6));
+// (ثابت: بيحتفظ بعمودين المركبة واللون اللي اتشالوا علشان السطور القديمة تترجّع صح)
+const LEGACY_HEADERS = HEADERS.slice(0, HEADERS.indexOf('رقم اللوحة') + 1).concat(['المركبة', 'لون المركبة'], HEADERS.slice(HEADERS.indexOf('رقم اللوحة') + 1));
+const OLD_HEADERS = LEGACY_HEADERS.slice(0, 6).concat(['رقم الموبايل'], LEGACY_HEADERS.slice(6));
+// أعمدة اتشالت من البرنامج (الماركة واللون) وبتتمسح من الشيت مرة واحدة
+const DROPPED_COLS = ['المركبة', 'لون المركبة'];
 // مكان كل عمود بيتقري من أسماء العناوين في الشيت نفسه، فلو عمود اتمسح أو اتنقل البرنامج مش بيتلخبط.
 const COL = {};
 HEADERS.forEach(function (h, i) { COL[h] = i; });
@@ -327,7 +331,20 @@ function renameCompanies() {
   return { list: listN, log: logN };
 }
 
+/** مرة واحدة: مسح عمودين «المركبة» و«لون المركبة» من الشيت (الماركة واللون اتشالوا). */
+function dropVehicleCols_() {
+  const sh = logSheet_();
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return String(x).trim(); });
+  const idx = []; head.forEach(function (h, i) { if (DROPPED_COLS.indexOf(h) >= 0) idx.push(i + 1); });
+  idx.reverse().forEach(function (c) { sh.deleteColumn(c); });
+  mapColumns_(sh);
+  return idx.length;
+}
 function autoRepair_() {
+  if (!PropertiesService.getScriptProperties().getProperty('VEH_COLS_DROPPED')) {
+    const l3 = LockService.getScriptLock();
+    if (l3.tryLock(20000)) { try { if (!PropertiesService.getScriptProperties().getProperty('VEH_COLS_DROPPED')) { dropVehicleCols_(); PropertiesService.getScriptProperties().setProperty('VEH_COLS_DROPPED', '1'); } } catch (e) {} finally { l3.releaseLock(); } }
+  }
   if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) {
     const l = LockService.getScriptLock();
     if (l.tryLock(20000)) { try { if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) renameCompanies(); } catch (e) {} finally { l.releaseLock(); } }
@@ -930,8 +947,6 @@ function saveEntry(token, e) {
     row[COL['inMs']] = now.getTime();
     row[COL['حساب الدخول']] = u.username;
     row[COL['رقم اللوحة']] = plateNorm_(e.plate);
-    row[COL['المركبة']] = clean_(e.vehicle);
-    row[COL['لون المركبة']] = clean_(e.vehicleColor);
     row[COL['التصريح']] = pv.code === 'off' ? '' : pv.msg;
     ['الرقم القومي', 'تاريخ الميلاد', 'التاريخ', 'وقت الدخول'].forEach(function (h) {
       if (row[COL[h]] !== '') row[COL[h]] = "'" + row[COL[h]];
@@ -1141,10 +1156,6 @@ function getReport(token, from, to, gate) {
     dests: count('dest'),
     govs: count('gov'), addrGovs: count('addrGov'),
     withVehicle: rows.filter(function (r) { return r.plate; }).length,
-    vehicles: top_(rows.reduce(function (m, r) {
-      if (r.plate) { const k = String(r.vehicle || '').trim().split(/\s+/)[0] || 'غير محدد'; m[k] = (m[k] || 0) + 1; }
-      return m;
-    }, {}), 10),
     gender: { m: rows.filter(function (r) { return r.gender === 'ذكر'; }).length, f: rows.filter(function (r) { return r.gender === 'أنثى'; }).length },
     frequent: Object.keys(nids).map(function (k) { return nids[k]; }).filter(function (x) { return x.n > 1; })
       .sort(function (a, b) { return b.n - a.n; }).slice(0, 10),
@@ -1183,7 +1194,7 @@ function rows_(limit) {
       company: v[COL['الشركة / صاحب العمل']], day: v[COL['التاريخ']],
       inTime: v[COL['وقت الدخول']], outTime: v[COL['وقت الخروج']], duration: v[COL['مدة التواجد (س:د)']],
       guardIn: v[COL['فرد الأمن (دخول)']], guardOut: v[COL['فرد الأمن (خروج)']],
-      plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
+      plate: v[COL['رقم اللوحة']] || '',
       address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
       edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
       permit: v[COL['التصريح']] || '', addrGov: v[COL['محافظة العنوان']] || '',
@@ -1278,7 +1289,7 @@ function plateNorm_(s) {
 }
 
 /**
- * بيطلّع رقم اللوحة والماركة واللون من نص رخصة المركبة.
+ * بيطلّع رقم اللوحة من صورة النمرة أو رخصة المركبة.
  * اللوحة: ١-٣ حروف لوحدها + ١-٤ أرقام (بأي ترتيب). السطر اللي فيه "لوحة" أو اللي بعده له الأولوية.
  */
 function parseCarText_(text) {
@@ -1310,24 +1321,7 @@ function parseCarText_(text) {
   });
   const plate = best ? plateNorm_(best.letters + ' ' + best.nums) : '';
 
-  const field = function (re) {
-    for (let i = 0; i < lines.length; i++) {
-      const m = lines[i].match(re);
-      if (!m) continue;
-      const v = (m[1] || '').trim() || (lines[i + 1] || '');
-      return v.replace(/[^؀-ۿa-zA-Z0-9\s\-]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
-    }
-    return '';
-  };
-  const brand = field(/(?:الماركه|الماركة|ماركه|ماركة)\s*(.*)$/);
-  const model = field(/(?:الطراز|الموديل|طراز)\s*(.*)$/);
-  const color = field(/(?:اللون|لون)\s*(.*)$/);
-  return {
-    plate: plate,
-    vehicle: [brand, model].filter(String).join(' ').replace(/\s+/g, ' ').trim(),
-    color: color,
-    raw: raw.slice(0, 1500)
-  };
+  return { plate: plate, raw: raw.slice(0, 1500) };
 }
 
 function norm_(s) {
