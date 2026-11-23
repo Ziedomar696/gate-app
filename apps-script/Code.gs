@@ -92,7 +92,8 @@ const HEADERS = [
   'رقم اللوحة', 'المركبة', 'لون المركبة',
   'آخر تعديل', 'محذوف',
   'تنبيه التأخير',
-  'التصريح'
+  'التصريح',
+  'محافظة العنوان'
 ];
 // ترتيب الأعمدة القديم (قبل ما عمود الموبايل يتشال) — بيستخدمه إصلاح الشيت بس.
 const OLD_HEADERS = HEADERS.slice(0, 6).concat(['رقم الموبايل'], HEADERS.slice(6));
@@ -104,6 +105,77 @@ const U_HEADERS = ['اسم المستخدم', 'الاسم', 'الدور', 'ال�
 const G_HEADERS = ['البوابة', 'نشطة'];
 
 const GOV = {"01":"القاهرة","02":"الإسكندرية","03":"بورسعيد","04":"السويس","11":"دمياط","12":"الدقهلية","13":"الشرقية","14":"القليوبية","15":"كفر الشيخ","16":"الغربية","17":"المنوفية","18":"البحيرة","19":"الإسماعيلية","21":"الجيزة","22":"بني سويف","23":"الفيوم","24":"المنيا","25":"أسيوط","26":"سوهاج","27":"قنا","28":"أسوان","29":"الأقصر","31":"البحر الأحمر","32":"الوادي الجديد","33":"مطروح","34":"شمال سيناء","35":"جنوب سيناء","88":"مواليد خارج مصر"};
+// «المحافظة» اللي جاية من الرقم القومي = محافظة الميلاد، و«محافظة العنوان» = محافظة السكن (من آخر جزء في العنوان بعد آخر «-»).
+// أسماء المحافظات + أشهر المدن/المراكز اللي بتتكتب مكان المحافظة.
+const ADDR_GOV = {
+  'القاهرة': ['القاهره', 'قاهره', 'حلوان', 'مدينه نصر', 'المعادي', 'شبرا مصر', 'مصر الجديده', 'المطريه'],
+  'الإسكندرية': ['الاسكندريه', 'اسكندريه', 'الاسكندرية', 'برج العرب', 'العامريه', 'محرم بك', 'المنتزه', 'سيدي بشر', 'العجمي'],
+  'بورسعيد': ['بورسعيد', 'بور سعيد'],
+  'السويس': ['السويس'],
+  'دمياط': ['دمياط', 'راس البر', 'فارسكور'],
+  'الدقهلية': ['الدقهليه', 'دقهليه', 'المنصوره', 'ميت غمر', 'طلخا', 'السنبلاوين', 'اجا', 'دكرنس'],
+  'الشرقية': ['الشرقيه', 'شرقيه', 'الزقازيق', 'العاشر من رمضان', 'بلبيس', 'منيا القمح', 'ابو حماد', 'فاقوس'],
+  'القليوبية': ['القليوبيه', 'قليوبيه', 'بنها', 'شبرا الخيمه', 'قليوب', 'الخانكه', 'طوخ'],
+  'كفر الشيخ': ['كفر الشيخ', 'دسوق', 'بيلا', 'سيدي سالم', 'فوه', 'مطوبس'],
+  'الغربية': ['الغربيه', 'غربيه', 'طنطا', 'المحله الكبري', 'المحله', 'زفتي', 'كفر الزيات', 'السنطه'],
+  'المنوفية': ['المنوفيه', 'منوفيه', 'شبين الكوم', 'قويسنا', 'منوف', 'اشمون', 'تلا', 'السادات'],
+  'البحيرة': ['البحيره', 'بحيره', 'دمنهور', 'كفر الدوار', 'ابو حمص', 'ايتاي البارود', 'كوم حماده', 'رشيد', 'وادي النطرون', 'النوباريه', 'الدلنجات', 'بدر'],
+  'الإسماعيلية': ['الاسماعيليه', 'اسماعيليه', 'الاسماعيلية'],
+  'الجيزة': ['الجيزه', 'جيزه', 'اكتوبر', '6 اكتوبر', 'الشيخ زايد', 'العياط', 'امبابه', 'الصف', 'الجزه'],
+  'بني سويف': ['بني سويف', 'بنى سويف', 'الواسطي', 'ببا', 'الفشن'],
+  'الفيوم': ['الفيوم', 'فيوم', 'سنورس', 'اطسا'],
+  'المنيا': ['المنيا', 'ملوي', 'مغاغه', 'سمالوط', 'سمالوس', 'بني مزار', 'مطاي', 'ابو قرقاص', 'دير مواس'],
+  'أسيوط': ['اسيوط', 'منفلوط', 'ديروط', 'القوصيه', 'ابنوب', 'ابو تيج', 'صدفا', 'صدفه'],
+  'سوهاج': ['سوهاج', 'طهطا', 'جرجا', 'اخميم', 'البلينا', 'طما', 'المراغه', 'دار السلام'],
+  'قنا': ['قنا', 'نجع حمادي', 'قوص', 'دشنا', 'فرشوط', 'ابو تشت', 'ابوتشت', 'نقاده'],
+  'أسوان': ['اسوان', 'ادفو', 'كوم امبو', 'دراو'],
+  'الأقصر': ['الاقصر', 'اقصر', 'اسنا', 'ارمنت'],
+  'البحر الأحمر': ['البحر الاحمر', 'الغردقه', 'سفاجا', 'القصير', 'مرسي علم'],
+  'الوادي الجديد': ['الوادي الجديد', 'الخارجه', 'الداخله'],
+  'مطروح': ['مطروح', 'مرسي مطروح', 'العلمين', 'الضبعه', 'الحمام', 'سيوه', 'السلوم', 'سيدي براني', 'سيدي عبد الرحمن', 'سيدي عبدالرحمن'],
+  'شمال سيناء': ['شمال سيناء', 'العريش', 'الشيخ زويد', 'رفح', 'بئر العبد'],
+  'جنوب سيناء': ['جنوب سيناء', 'شرم الشيخ', 'الطور', 'دهب', 'نويبع']
+};
+let _addrGovList = null;
+/** محافظة السكن من العنوان: بندوّر من آخر جزء (بعد آخر «-») لأوله، والاسم الأطول الأول. '' لو مش لاقيها. */
+function addrGov_(address) {
+  if (!_addrGovList) {
+    _addrGovList = [];
+    Object.keys(ADDR_GOV).forEach(function (g) { ADDR_GOV[g].concat([g]).forEach(function (a) { _addrGovList.push([norm_(a), g]); }); });
+    _addrGovList.sort(function (a, b) { return b[0].length - a[0].length; });
+  }
+  const segs = norm_(latinDigits_(address)).split(/\s*[-–،,\/_.]\s*/).map(function (x) { return ' ' + x.replace(/\s+/g, ' ').trim() + ' '; });
+  for (let i = segs.length - 1; i >= 0; i--) {
+    for (let k = 0; k < _addrGovList.length; k++) if (segs[i].indexOf(' ' + _addrGovList[k][0] + ' ') >= 0) return _addrGovList[k][1];
+  }
+  return '';
+}
+/** محافظة العنوان: اللي فرد الأمن اختارها (لو من القايمة) وإلا اللي في العنوان. */
+function pickAddrGov_(chosen, address) {
+  const c = clean_(chosen);
+  if (c && ADDR_GOV[c]) return c;
+  return addrGov_(address);
+}
+/** اسم المحافظة نفسه مكتوب في العنوان؟ (مش بس اسم مدينة/مركز فيها) */
+function hasGovName_(address, gov) {
+  const n = ' ' + norm_(latinDigits_(address)).replace(/[-–،,\/_.]/g, ' ').replace(/\s+/g, ' ') + ' ', g = norm_(gov);
+  return [g, g.replace(/^ال/, ''), g.replace(/\s+/g, '')].some(function (v) { return n.indexOf(' ' + v + ' ') >= 0; });
+}
+/** لو اسم المحافظة مش مكتوب في العنوان بنكمّله في آخره (القرية - المركز - المحافظة). */
+function fullAddress_(address, gov) {
+  const a = clean_(address);
+  return gov && !hasGovName_(a, gov) ? (a ? a + ' - ' : '') + gov : a;
+}
+/** مرة واحدة: «محافظة العنوان» للحركات القديمة من العنوان. */
+function fillAddressGov() {
+  const sh = logSheet_(), n = sh.getLastRow() - 1;
+  if (n < 1) return 0;
+  const a = sh.getRange(2, COL['العنوان'] + 1, n, 1).getValues(), g = sh.getRange(2, COL['محافظة العنوان'] + 1, n, 1);
+  const cur = g.getValues(); let c = 0;
+  a.forEach(function (r, i) { if (!String(cur[i][0]).trim()) { const v = addrGov_(r[0]); if (v) { cur[i][0] = v; c++; } } });
+  g.setValues(cur);
+  return c;
+}
 
 // ================================================================ web app
 
@@ -259,6 +331,10 @@ function autoRepair_() {
   if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) {
     const l = LockService.getScriptLock();
     if (l.tryLock(20000)) { try { if (!PropertiesService.getScriptProperties().getProperty('COMPANIES_AR')) renameCompanies(); } catch (e) {} finally { l.releaseLock(); } }
+  }
+  if (!PropertiesService.getScriptProperties().getProperty('ADDR_GOV_V1')) {
+    const l2 = LockService.getScriptLock();
+    if (l2.tryLock(20000)) { try { if (!PropertiesService.getScriptProperties().getProperty('ADDR_GOV_V1')) { logSheet_(); fillAddressGov(); PropertiesService.getScriptProperties().setProperty('ADDR_GOV_V1', '1'); } } catch (e) {} finally { l2.releaseLock(); } }
   }
   if (PropertiesService.getScriptProperties().getProperty('COLS_REPAIRED')) return;
   const lock = LockService.getScriptLock();
@@ -443,12 +519,12 @@ function login(username, password) {
   }
   cache.remove(key);
   try { usersSheet_().getRange(u.row, 6).setValue("'" + stamp_(new Date())); dropUsersCache_(); } catch (e) {}
-  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS };
+  return { token: makeToken_(u), me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS, addrGov: ADDR_GOV };
 }
 
 function whoami(token) {
   const u = auth_(token);
-  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS };
+  return { me: publicUser_(u), gates: myGates_(u), reasons: activeReasons_(), companies: activeCompanies_(), permitExempt: permitExempt_(), alertHours: ALERT_HOURS, addrGov: ADDR_GOV };
 }
 
 function changeMyPassword(token, oldPw, newPw) {
@@ -819,6 +895,8 @@ function saveEntry(token, e) {
   const p = parseNid_(nid);
   if (!p) throw new Error('الرقم القومي لازم يكون ١٤ رقم صحيح.');
   if (!clean_(e.address)) throw new Error('اكتب العنوان.');
+  const agov = pickAddrGov_(e.addrGov, e.address);
+  if (!agov) throw new Error('العنوان ناقص المحافظة. اختار محافظة العنوان.');
   if (!clean_(e.dest)) throw new Error('اكتب هو رايح فين (الوحدة / الموقع).');
   if (!clean_(e.reason)) throw new Error('اختار سبب الدخول.');
   if (!clean_(e.company)) throw new Error('اختار الشركة أو اكتب التبعية.');
@@ -838,7 +916,8 @@ function saveEntry(token, e) {
     row[COL['تاريخ الميلاد']] = p.dob;
     row[COL['النوع']] = p.gender;
     row[COL['المحافظة']] = p.gov;
-    row[COL['العنوان']] = clean_(e.address);
+    row[COL['العنوان']] = fullAddress_(e.address, agov);
+    row[COL['محافظة العنوان']] = agov;
     row[COL['القطاع']] = sector;
     row[COL['رايح فين']] = clean_(e.dest);
     row[COL['سبب الدخول']] = clean_(e.reason);
@@ -929,7 +1008,8 @@ function updateEntry(token, id, e) {
     const set = function (h, v, text) { cur[COL[h]] = text && v !== '' ? "'" + v : v; };
     set('الاسم', name); set('الرقم القومي', nid, true); set('تاريخ الميلاد', p.dob, true);
     set('النوع', p.gender); set('المحافظة', p.gov);
-    set('العنوان', clean_(e.address));
+    const agov = pickAddrGov_(e.addrGov, e.address);
+    set('العنوان', fullAddress_(e.address, agov)); set('محافظة العنوان', agov);
     set('رايح فين', clean_(e.dest)); set('سبب الدخول', clean_(e.reason));
     set('الشركة / صاحب العمل', clean_(e.company)); set('ملاحظات', clean_(e.notes));
     set('رقم اللوحة', plate);
@@ -1059,7 +1139,7 @@ function getReport(token, from, to, gate) {
     reasons: count('reason'),
     companies: count('company'),
     dests: count('dest'),
-    govs: count('gov'),
+    govs: count('gov'), addrGovs: count('addrGov'),
     withVehicle: rows.filter(function (r) { return r.plate; }).length,
     vehicles: top_(rows.reduce(function (m, r) {
       if (r.plate) { const k = String(r.vehicle || '').trim().split(/\s+/)[0] || 'غير محدد'; m[k] = (m[k] || 0) + 1; }
@@ -1106,7 +1186,7 @@ function rows_(limit) {
       plate: v[COL['رقم اللوحة']] || '', vehicle: v[COL['المركبة']] || '', vehicleColor: v[COL['لون المركبة']] || '',
       address: v[COL['العنوان']] || '', notes: v[COL['ملاحظات']] || '',
       edited: v[COL['آخر تعديل']] || '', alerted: v[COL['تنبيه التأخير']] || '',
-      permit: v[COL['التصريح']] || '',
+      permit: v[COL['التصريح']] || '', addrGov: v[COL['محافظة العنوان']] || '',
       inMs: Number(v[COL['inMs']]) || 0,
       outMs: Number(v[COL['outMs']]) || 0
     });
@@ -1178,9 +1258,12 @@ function parseIdText_(text) {
     nameLines = lines.slice(0, 2);
     addrLines = lines.slice(2, 4);
   }
+  // الاسم على البطاقة ٣ أسماء على الأقل: لو طلع أقل، فالسطر اللي اتحسب أول العنوان هو باقي الاسم
+  const words = function (ls) { return ls.join(' ').split(/\s+/).filter(String).length; };
+  while (words(nameLines) < 3 && addrLines.length > 1 && !/[0-9٠-٩]/.test(addrLines[0]) && !isAddrEnd(addrLines[0])) nameLines = nameLines.concat([addrLines.shift()]);
   const name = nameLines.filter(function (l) { return !/[0-9٠-٩]/.test(l); }).join(' ').replace(/\s+/g, ' ').trim();
   const address = addrLines.join(' - ').replace(/\s*-\s*(-\s*)+/g, ' - ').trim();
-  return { name: name, nationalId: nid, address: address, raw: raw.slice(0, 1500) };
+  return { name: name, nationalId: nid, address: address, addrGov: addrGov_(address), raw: raw.slice(0, 1500) };
 }
 
 // حروف لوحات مصر

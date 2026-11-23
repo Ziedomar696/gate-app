@@ -274,7 +274,10 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f wide"><span>الرقم القومي (١٤ رقم) <b class="req">*</b></span><input id="nid" inputmode="numeric" maxlength="20" class="num" style="text-align:right" aria-required="true"><span class="req-msg" data-for="nid" hidden>لازم تكتب الرقم القومي صح (١٤ رقم).</span></label>
           <div class="derived wide" id="derived"></div>
           <div class="permit wide" id="permitBox" hidden role="status" aria-live="polite"><img class="pic none" id="permitPic" alt="صورة العامل من سيستم الايديهات" referrerpolicy="no-referrer"><div><b class="t" id="permitTitle"></b><div class="sub" id="permitSub"></div></div></div>
-          <label class="f wide"><span>العنوان (من البطاقة) <b class="req">*</b></span><input id="address" aria-required="true"><span class="req-msg" data-for="address" hidden>لازم تكتب العنوان.</span></label>
+          <label class="f wide"><span>العنوان (من البطاقة) <b class="req">*</b></span><input id="address" aria-required="true" placeholder="القرية / الشارع - المركز - المحافظة"><span class="req-msg" data-for="address" hidden>لازم تكتب العنوان.</span></label>
+          <label class="f"><span>محافظة العنوان (السكن) <b class="req">*</b></span><select id="addrGov" aria-required="true"></select><span class="req-msg" data-for="addrGov" hidden>اختار محافظة العنوان.</span></label>
+          <div class="derived wide" id="addrWarn"></div>
+          <label class="checks wide" id="abroadRow" hidden><input type="checkbox" id="abroadOk"> <b>راجعت الرقم القومي على البطاقة وهو فعلاً «مواليد خارج مصر»</b></label>
           <label class="f"><span>رايح فين (وحدة / موقع) <b class="req">*</b></span><input id="dest" placeholder="مثال: فيلا 42" aria-required="true"><span class="req-msg" data-for="dest" hidden>لازم تكتب هو رايح فين.</span></label>
           <label class="f"><span>سبب الدخول <b class="req">*</b></span>
             <select id="reason" aria-required="true"></select>
@@ -362,7 +365,8 @@ dialog form{padding:16px;display:grid;gap:12px}
       <section class="card"><h3>سبب الدخول</h3><div id="chReason"></div></section>
       <section class="card"><h3>أكتر الشركات / المقاولين</h3><div id="chCompany"></div></section>
       <section class="card"><h3>أكتر الأماكن اللي راحوا لها</h3><div id="chDest"></div></section>
-      <section class="card"><h3>المحافظات</h3><div id="chGov"></div></section>
+      <section class="card"><h3>محافظة السكن (من العنوان)</h3><div id="chAddrGov"></div></section>
+      <section class="card"><h3>محافظة الميلاد (من الرقم القومي)</h3><div id="chGov"></div></section>
       <section class="card"><h3>النوع</h3><div id="chGender"></div></section>
       
       <section class="card full"><h3>جوه بقالهم أكتر من <span id="rpLateH">8</span> ساعات</h3><div id="tbOver"></div></section>
@@ -474,6 +478,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       <label class="f wide">الاسم بالكامل<input id="eName"></label>
       <label class="f wide">الرقم القومي<input id="eNid" inputmode="numeric" maxlength="20" class="num" style="text-align:right"></label>
       <label class="f wide">العنوان<input id="eAddress"></label>
+      <label class="f">محافظة العنوان (السكن)<select id="eAddrGov"></select></label>
       <label class="f">رايح فين<input id="eDest"></label>
       <label class="f">سبب الدخول<select id="eReason"></select><input id="eReasonOther" placeholder="اكتب السبب" hidden></label>
       <label class="f">الشركة / صاحب العمل<select id="eCompany"></select><input id="eCompanyOther" placeholder="اكتب التبعية (تبع مين؟)" hidden></label>
@@ -591,7 +596,7 @@ dialog form{padding:16px;display:grid;gap:12px}
   function signedIn(r){
     TOKEN = r.token || TOKEN; store.set("gate.token", TOKEN);
     ME = r.me; MYGATES = r.gates || [];
-    if(r.reasons) REASONS = r.reasons; if(r.companies) COMPANIES = r.companies; if(r.permitExempt) EXEMPT = r.permitExempt; if(r.alertHours) ALERT_H = r.alertHours;
+    if(r.reasons) REASONS = r.reasons; if(r.companies) COMPANIES = r.companies; if(r.permitExempt) EXEMPT = r.permitExempt; if(r.alertHours) ALERT_H = r.alertHours; setAddrGovs(r.addrGov);
     start();
   }
   $("#loginForm").addEventListener("submit", function(e){
@@ -671,7 +676,38 @@ dialog form{padding:16px;display:grid;gap:12px}
   bindOther($("#company"), $("#companyOther"));
   bindOther($("#eCompany"), $("#eCompanyOther"));
   // الخانات الإجبارية: لو فاضية بتحمر ويظهر تحتها رسالة، وبيروح الأحمر أول ما تتملي
-  var REQ = ["name","nid","address","dest","reason","company"];
+  var REQ = ["name","nid","address","addrGov","dest","reason","company"];
+  // ---------- محافظة العنوان (السكن): من آخر جزء في العنوان بعد آخر «-» ----------
+  var ADDRGOV = {}, _agList = null;
+  function normAr(t){ return latin(t).replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/ـ/g, ""); }
+  function addrGov(address){
+    if(!_agList){ _agList = []; Object.keys(ADDRGOV).forEach(function(g){ ADDRGOV[g].concat([g]).forEach(function(a){ _agList.push([normAr(a), g]); }); }); _agList.sort(function(a, b){ return b[0].length - a[0].length; }); }
+    var segs = normAr(address).split(/\s*[-–،,\/_.]\s*/).map(function(x){ return " " + x.replace(/\s+/g, " ").trim() + " "; });
+    for(var i = segs.length - 1; i >= 0; i--) for(var k = 0; k < _agList.length; k++) if(segs[i].indexOf(" " + _agList[k][0] + " ") >= 0) return _agList[k][1];
+    return "";
+  }
+  function hasGovName(a, g){ var n = " " + normAr(a).replace(/[-–،,\/_.]/g, " ").replace(/\s+/g, " ") + " ", v = normAr(g); return [v, v.replace(/^ال/, ""), v.replace(/\s+/g, "")].some(function(x){ return n.indexOf(" " + x + " ") >= 0; }); }
+  function fillAddrGov(sel, cur){
+    sel.innerHTML = '<option value="">اختار المحافظة</option>' + Object.keys(ADDRGOV).map(function(g){ return '<option>'+esc(g)+'</option>'; }).join("");
+    sel.value = cur || "";
+  }
+  function setAddrGovs(map){ if(!map) return; ADDRGOV = map; _agList = null; fillAddrGov($("#addrGov"), $("#addrGov").value); fillAddrGov($("#eAddrGov"), $("#eAddrGov").value); }
+  // تنبيهات العنوان: ناقص المحافظة / جزء من الاسم دخل فيه
+  function addrCheck(){
+    var a = $("#address").value.trim(), box = $("#addrWarn"), out = [];
+    var g = addrGov(a);
+    if(g && $("#addrGov").value !== g){ $("#addrGov").value = g; reqMark("addrGov", false); }
+    var sel = $("#addrGov").value;
+    if(a && g && sel === g && !hasGovName(a, g)) out.push("اسم المحافظة مش مكتوب في العنوان — هيتكتب «" + g + "» في آخره.");
+    if(a && !g) out.push($("#addrGov").value ? "العنوان مفيهوش المحافظة — هتتكتب «" + $("#addrGov").value + "» في آخره." : "العنوان مفيهوش المحافظة. اختار محافظة العنوان من القايمة.");
+    if(a && g && $("#addrGov").value && $("#addrGov").value !== g) out.push("المحافظة اللي اخترتها غير اللي مكتوبة في العنوان (" + g + "). راجع البطاقة.");
+    var nw = normAr($("#name").value).split(/\s+/).filter(function(w){ return w.length > 1; }), na = " " + normAr(a).replace(/[-–،,\/_.]/g, " ").replace(/\s+/g, " ") + " ";
+    for(var i = 0; i + 1 < nw.length; i++) if(na.indexOf(" " + nw[i] + " " + nw[i+1] + " ") >= 0){ out.push("جزء من الاسم («" + nw[i] + " " + nw[i+1] + "») شكله دخل في العنوان. راجع الاسم والعنوان مع البطاقة."); break; }
+    box.innerHTML = out.map(function(t){ return '<span class="chip bad">'+esc(t)+'</span>'; }).join("");
+  }
+  $("#address").addEventListener("input", addrCheck);
+  $("#name").addEventListener("input", addrCheck);
+  $("#addrGov").addEventListener("change", addrCheck);
   function nameWords(v){ return String(v || "").trim().split(/\s+/).filter(function(w){ return /[\u0600-\u06FFA-Za-z]/.test(w); }).length; }
   function reqEl(k){ var sel = $("#"+k), other = $("#"+k+"Other"); return other && sel.value === "__other" ? other : sel; }
   function reqOk(k){
@@ -702,8 +738,11 @@ dialog form{padding:16px;display:grid;gap:12px}
       box.innerHTML = '<span class="chip bad">الرقم القومي مش مظبوط (' + n.length + ' رقم). راجعه على البطاقة</span>';
     } else {
       inp.classList.remove("flag");
-      box.innerHTML = ["مواليد " + p.dob, p.gender, p.gov, "السن " + p.age].map(function(t){ return '<span class="chip">'+esc(t)+'</span>'; }).join("") + (p.age < 18 ? '<span class="chip bad">أقل من ١٨ سنة</span>' : "");
+      box.innerHTML = ["مواليد " + p.dob, p.gender, "محافظة الميلاد: " + p.gov, "السن " + p.age].map(function(t){ return '<span class="chip">'+esc(t)+'</span>'; }).join("") + (p.age < 18 ? '<span class="chip bad">أقل من ١٨ سنة</span>' : "") +
+        (n.slice(7, 9) === "88" ? '<span class="chip bad">الرقم القومي بيقول «مواليد خارج مصر» — نادر وغالبًا الرقم اتقرا غلط. قارن الرقم ده بالبطاقة رقم رقم.</span>' : "");
     }
+    var abroad = !!p && n.slice(7, 9) === "88";
+    $("#abroadRow").hidden = !abroad; if(!abroad) $("#abroadOk").checked = false;
     var inside = state.inside.filter(function(e){ return e.nid === n; })[0];
     var d = $("#dupe");
     if(n.length === 14 && inside){ d.hidden = false; d.textContent = "الشخص ده متسجل جوه من " + inside.inTime + " (" + (inside.sector || "بدون بوابة") + ") ولسه ماخرجش. سجّل خروجه الأول."; }
@@ -783,6 +822,8 @@ dialog form{padding:16px;display:grid;gap:12px}
       if(r.name) $("#name").value = r.name;
       if(r.nationalId) $("#nid").value = r.nationalId;
       if(r.address) $("#address").value = r.address;
+      if(r.addrGov) $("#addrGov").value = r.addrGov;
+      addrCheck();
       if(r.raw){ $("#rawText").textContent = r.raw; $("#rawBox").hidden = false; }
       refreshDerived();
       var ok = parseNid(cleanNid($("#nid").value));
@@ -831,6 +872,7 @@ dialog form{padding:16px;display:grid;gap:12px}
 
   function clearForm(){
     ["name","nid","address","dest","notes"].forEach(function(id){ $("#"+id).value = ""; });
+    $("#addrGov").value = ""; $("#addrWarn").innerHTML = ""; $("#abroadOk").checked = false; $("#abroadRow").hidden = true;
     fillReasons($("#reason"), $("#reasonOther"), "");
     fillCompanies($("#company"), $("#companyOther"), "");
     reqClear();
@@ -848,7 +890,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var entry = {
       sector: $("#sector").value,
       name: $("#name").value.trim(), nid: cleanNid($("#nid").value),
-      address: $("#address").value.trim(), dest: $("#dest").value.trim(), reason: getReason($("#reason"), $("#reasonOther")),
+      address: $("#address").value.trim(), addrGov: $("#addrGov").value, dest: $("#dest").value.trim(), reason: getReason($("#reason"), $("#reasonOther")),
       company: getReason($("#company"), $("#companyOther")), notes: $("#notes").value.trim(),
       plate: ""
     };
@@ -862,6 +904,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       toast(missing.length === 1 ? "فيه خانة لازم تتملي (معلّمة بالأحمر)." : "فيه " + missing.length + " خانات لازم تتملي (معلّمة بالأحمر).");
       reqEl(missing[0]).focus(); return;
     }
+    if(!$("#abroadRow").hidden && !$("#abroadOk").checked){ toast("الرقم القومي بيقول «مواليد خارج مصر». راجعه على البطاقة وعلّم إنك اتأكدت."); $("#nid").focus(); return; }
     if(PERMIT && PERMIT.block){ toast("ممنوع الدخول: " + PERMIT.msg.replace(/(\d{4}-\d{2}-\d{2})/g, "\u2066$1\u2069") + "."); $("#nid").focus(); return; }
     var btn = $("#saveBtn"); busy(btn, true, "بيسجل…");
     run("saveEntry", TOKEN, entry).then(function(r){
@@ -959,6 +1002,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     var map = { eName:"name", eNid:"nid", eAddress:"address", eDest:"dest", eNotes:"notes", ePlate:"plate" };
     fillCompanies($("#eCompany"), $("#eCompanyOther"), x.company);
     Object.keys(map).forEach(function(k){ $("#"+k).value = x[map[k]] || ""; });
+    fillAddrGov($("#eAddrGov"), x.addrGov || addrGov(x.address));
     fillReasons($("#eReason"), $("#eReasonOther"), x.reason);
     $("#eInfo").textContent = "دخل " + x.day + " " + x.inTime + " · " + x.sector + (x.edited ? " · آخر تعديل: " + x.edited : "");
     $("#eMsg").textContent = "";
@@ -966,12 +1010,13 @@ dialog form{padding:16px;display:grid;gap:12px}
     $("#eDelete").hidden = !canDel; delArmed = false; $("#eDelete").textContent = "مسح الحركة";
     $("#entryDlg").showModal();
   });
+  $("#eAddress").addEventListener("input", function(){ var g = addrGov(this.value); if(g) $("#eAddrGov").value = g; });
   $("#ePlate").addEventListener("blur", function(e){ e.target.value = plateNorm(e.target.value); });
   $("#entryEditForm").addEventListener("submit", function(e){
     if(e.submitter && e.submitter.value === "cancel") return;
     e.preventDefault();
     var d = { name: $("#eName").value.trim(), nid: cleanNid($("#eNid").value),
-      address: $("#eAddress").value.trim(), dest: $("#eDest").value.trim(), reason: getReason($("#eReason"), $("#eReasonOther")),
+      address: $("#eAddress").value.trim(), addrGov: $("#eAddrGov").value, dest: $("#eDest").value.trim(), reason: getReason($("#eReason"), $("#eReasonOther")),
       company: getReason($("#eCompany"), $("#eCompanyOther")), notes: $("#eNotes").value.trim(),
       plate: plateNorm($("#ePlate").value) };
     if(!d.name){ $("#eMsg").textContent = "اكتب الاسم."; return; }
@@ -1044,7 +1089,7 @@ dialog form{padding:16px;display:grid;gap:12px}
     colChart($("#chDay"), days, Math.max(1, Math.ceil(days.length / 12)));
     colChart($("#chHour"), r.byHour.map(function(n, h){ return { label: String(h), tip: "الساعة " + pad(h) + ":00", n: n }; }), 3);
     hbars($("#chGate"), r.byGate); hbars($("#chReason"), r.reasons); hbars($("#chCompany"), r.companies);
-    hbars($("#chDest"), r.dests); hbars($("#chGov"), r.govs);
+    hbars($("#chDest"), r.dests); hbars($("#chGov"), r.govs); hbars($("#chAddrGov"), (r.addrGovs || []).filter(function(x){ return x.k; }));
     var tot = r.gender.m + r.gender.f;
     $("#chGender").innerHTML = tot ? '<div class="split" role="img" aria-label="ذكر '+r.gender.m+'، أنثى '+r.gender.f+'"><i style="flex:'+r.gender.m+';background:var(--bar)"></i><i style="flex:'+r.gender.f+';background:var(--accent)"></i></div>' +
       '<div class="legend"><span style="--c:var(--bar)">ذكر '+fmt(r.gender.m)+' ('+Math.round(r.gender.m/tot*100)+'٪)</span><span style="--c:var(--accent)">أنثى '+fmt(r.gender.f)+' ('+Math.round(r.gender.f/tot*100)+'٪)</span></div>' : '<div class="empty">مفيش بيانات.</div>';
@@ -1098,7 +1143,7 @@ dialog form{padding:16px;display:grid;gap:12px}
       .catch(function(err){ toast(errMsg(err)); });
   });
   function refreshGates(){ run("whoami", TOKEN).then(function(r){
-    ME = r.me; MYGATES = r.gates; fillGateSelects();
+    ME = r.me; MYGATES = r.gates; fillGateSelects(); setAddrGovs(r.addrGov);
     if(r.reasons){ var cur = getReason($("#reason"), $("#reasonOther")); REASONS = r.reasons; fillReasons($("#reason"), $("#reasonOther"), cur); }
     if(r.companies){ var cc = getReason($("#company"), $("#companyOther")); COMPANIES = r.companies; fillCompanies($("#company"), $("#companyOther"), cc); }
   }).catch(function(){}); }
