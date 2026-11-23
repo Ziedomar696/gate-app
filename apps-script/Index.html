@@ -287,7 +287,7 @@ dialog form{padding:16px;display:grid;gap:12px}
           <label class="f"><span>الشركة / المقاول / صاحب العمل <b class="req">*</b></span>
             <select id="company" aria-required="true"></select>
             <input id="companyOther" placeholder="اكتب التبعية (تبع مين؟)" hidden>
-            <span class="req-msg" data-for="company" hidden>لازم تختار الشركة أو تكتب التبعية.</span>
+            <span class="req-msg" data-for="company" hidden>لازم تختار الشركة.</span>
           </label>
           <label class="f">ملاحظات<input id="notes"></label>
         </div>
@@ -429,7 +429,7 @@ dialog form{padding:16px;display:grid;gap:12px}
         <label class="f grow">شركة جديدة<input id="newCompany" placeholder="مثال: Orascom"></label>
         <button class="solid" type="submit">إضافة</button>
       </form>
-      <p class="hint">الشركة الموقوفة بتختفي من القايمة، بس بتفضل في الحركات القديمة والتقارير. ولو الشخص مش تبع أي شركة في القايمة، فرد الأمن يختار «أخرى» ويكتب التبعية.</p>
+      <p class="hint">الشركة الموقوفة بتختفي من القايمة، بس بتفضل في الحركات القديمة والتقارير. فرد الأمن بيختار من القايمة بس (مفيش «أخرى»)، فلو فيه شركة جديدة ضيفها هنا الأول.</p>
     </section>
   </section>
 </div>
@@ -511,9 +511,11 @@ dialog form{padding:16px;display:grid;gap:12px}
   function fillList(sel, other, list, current, first, otherLbl){
     current = current || "";
     var known = list.indexOf(current) >= 0 || !current;
-    sel.innerHTML = '<option value="">'+esc(first)+'</option>' + list.map(function(r){ return '<option value="'+esc(r)+'">\u2068'+esc(r)+'\u2069</option>'; }).join("") + '<option value="__other">'+esc(otherLbl)+'</option>';
-    sel.value = known ? current : "__other";
-    other.hidden = sel.value !== "__other"; other.value = known ? "" : current;
+    // مفيش «أخرى»: الاختيار من القايمة بس. القيمة القديمة (في التعديل) بتفضل ظاهرة لو مش في القايمة.
+    sel.innerHTML = '<option value="">'+esc(first)+'</option>' + list.map(function(r){ return '<option value="'+esc(r)+'">\u2068'+esc(r)+'\u2069</option>'; }).join("") +
+      (known ? "" : '<option value="'+esc(current)+'">\u2068'+esc(current)+'\u2069 (مش في القايمة)</option>');
+    sel.value = current;
+    other.hidden = true; other.value = "";
   }
   function fillReasons(sel, other, current){ fillList(sel, other, REASONS, current, "— اختار السبب —", "أخرى…"); }
   function fillCompanies(sel, other, current){ fillList(sel, other, COMPANIES, current, "— اختار الشركة —", "أخرى (اكتب التبعية)…"); }

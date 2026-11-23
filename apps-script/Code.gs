@@ -915,8 +915,8 @@ function saveEntry(token, e) {
   const agov = pickAddrGov_(e.addrGov, e.address);
   if (!agov) throw new Error('العنوان ناقص المحافظة. اختار محافظة العنوان.');
   if (!clean_(e.dest)) throw new Error('اكتب هو رايح فين (الوحدة / الموقع).');
-  if (!clean_(e.reason)) throw new Error('اختار سبب الدخول.');
-  if (!clean_(e.company)) throw new Error('اختار الشركة أو اكتب التبعية.');
+  if (activeReasons_().indexOf(clean_(e.reason)) < 0) throw new Error('اختار سبب الدخول من القايمة.');
+  if (activeCompanies_().indexOf(clean_(e.company)) < 0) throw new Error('اختار الشركة من القايمة.');
 
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
